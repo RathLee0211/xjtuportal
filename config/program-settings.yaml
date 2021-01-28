@@ -1,0 +1,51 @@
+# !!! DO NOT CHANGE THE FOLLOWING SETTINGS IF YOU DONT KNOW WHAT THEY ARE !!!
+
+http_header:
+  user_agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.45 Safari/537.36
+  accept_language: zh-CN;q=0.9,zh;q=0.8
+
+api:
+  network_check:
+    internet_check_hostname: 202.108.22.5
+    intranet_check_hostname: 202.117.1.13
+  portal_server:
+    hostname: 10.184.6.32
+    fake_redirect_path: /?userip=10.180.0.1&nasip=10.6.0.1&usermac=00:11:22:33:44:55
+    login_path: /portal/api/v2/online
+    # session_path: /portal/api/v2/session
+    session_list_path: /portal/api/v2/session/list
+    logout_path: /portal/api/v2/session/acctUniqueId
+
+error_handle:
+  login_errors:
+    - error_description: You are dialed up outside your allowed timespan
+      error_code: 21
+    - error_description: authentication rejected
+      error_code: 24
+    - error_description: You account has been suspended
+      error_code: 27
+    - error_description: You account has been froze, please contact service support
+      error_code: 33
+    - error_description: No billing plan subscription, please subscribe
+      error_code: 36
+      # Session concurrency overload
+    - error_description: already have
+      error_code: 39
+    - error_description: the account can only be used in student zone
+      error_code: 43
+    - error_description: the account can only be used in office zone
+      error_code: 46
+    - error_description: the account can only be used in visitor zone
+      error_code: 49
+    - error_description: invalid username or
+      error_code: 60
+
+return_params:
+  session:
+    max_session_number: concurrency
+    session_list: sessions
+    user_ip: framed_ip_address
+    nas_ip: nas_ip_address
+    user_mac: calling_station_id
+    login_ts: acct_start_time
+    acct_id: acct_unique_id

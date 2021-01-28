@@ -1,0 +1,27 @@
+# Your authentication information
+auth_data:
+  # xjtu, cmcc, CUCC
+  # Only xjtu is available
+  domain: xjtu
+  username: 3120123456
+  password: zhangsan123456
+
+session_manage:
+  # Auto logout device if device number is overload, default is false
+  auto_logout: true
+  # Search for mac addresses
+  lan_ip_cidr: 192.168.0.0/16
+  # The familiar MAC list here will be used to logout in the order defined here
+  device_list:
+    - 11:22:33:44:55:66
+    - aa:bb:cc:dd:ee:ff
+
+log:
+  # stdout, file or both, default is stdout
+  log_output:
+    - stdout
+    - file
+  # debug, info, warning, error, mute, default is warning
+  log_level: warning
+  # Enabled when log_output contains file, default is "log.txt" in current working directory
+  log_file: log.txt
