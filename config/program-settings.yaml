@@ -1,22 +1,29 @@
 # !!! DO NOT CHANGE THE FOLLOWING SETTINGS IF YOU DONT KNOW WHAT THEY ARE !!!
 
-http_header:
-  user_agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.45 Safari/537.36
-  accept_language: zh-CN;q=0.9,zh;q=0.8
+http:
+  header:
+    user_agent: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.45 Safari/537.36"
+    accept_language: "zh-CN;q=0.9,zh;q=0.8"
+  connect:
+    timeout: 5
 
 api:
   network_check:
-    internet_check_hostname: 202.108.22.5
-    intranet_check_hostname: 202.117.1.13
+    internet_check_hostname: "202.108.22.5"
+    intranet_check_hostname: "202.117.1.13"
+    dns_check_hostname: "baidu.com"
   portal_server:
-    hostname: 10.184.6.32
-    fake_redirect_path: /?userip=10.180.0.1&nasip=10.6.0.1&usermac=00:11:22:33:44:55
-    login_path: /portal/api/v2/online
-    # session_path: /portal/api/v2/session
-    session_list_path: /portal/api/v2/session/list
-    logout_path: /portal/api/v2/session/acctUniqueId
+    hostname: "10.184.6.32"
+    fake_redirect_path: "/?userip=10.180.0.1&nasip=10.6.0.1&usermac=00:11:22:33:44:55"
+    login_path: "/portal/api/v2/online"
+    # session_path: "/portal/api/v2/session"
+    session_list_path: "/portal/api/v2/session/list"
+    logout_path: "/portal/api/v2/session/acctUniqueId"
+  speed_check_server:
+    hostname: "202.117.13.131"
+    get_ip_path: "/conf.php?m=User&c=index&a=get_client_ip"
 
-error_handle:
+errors:
   login_errors:
     - error_description: You are dialed up outside your allowed timespan
       error_code: 21
@@ -40,12 +47,68 @@ error_handle:
     - error_description: invalid username or
       error_code: 60
 
-return_params:
-  session:
-    max_session_number: concurrency
-    session_list: sessions
-    user_ip: framed_ip_address
-    nas_ip: nas_ip_address
-    user_mac: calling_station_id
-    login_ts: acct_start_time
-    acct_id: acct_unique_id
+# Output format
+log:
+  # Golang datetime layout
+  # Refer: https://programming.guide/go/format-parse-string-time-date-example.html
+  datetime: "2006-01-02 15:04:05"
+  # [Datetime] [Loglevel] log information
+  log_record: "[%s] [%s] %s"
+
+session:
+  session_record: "Session [%d]: %s"
+  session_info: "MAC = %s, IP = %s, Last Login = %s"
+
+error_handle:
+  login_errors:
+    200:
+      hint_message: "登录成功"
+      log_message: "Login success"
+    33:
+      hint_message: "账号被冻结，可能是您的账号产生了异常流量，请联系运维人员并提供运行日志"
+      log_message: "Account is frozen"
+    39:
+      hint_message: "在线设备数已达到上限，请手动下线设备或开启自动下线配置"
+      log_message: "Session concurrency overload"
+    49:
+      hint_message: "当前账号只可使用访客网络"
+      log_message: "Only guest network is available"
+    60:
+      hint_message: "配置文件中设置的用户名和密码不正确"
+      log_message: "Invalid username or password"
+      # default
+    -1:
+      hint_message: "其它错误，请联系运维人员并提供运行日志"
+      log_message: "Error happens when logging in"
+  logout_errors:
+    200:
+      hint_message: "下线成功"
+      log_message: "Logout success"
+      # default
+    -1:
+      hint_message: "下线失败"
+      log_message: "Logout failed"
+  get_session_errors:
+    200:
+      hint_message: "获取会话列表成功"
+      log_message: "Get session list success"
+      # default
+    -1:
+      hint_message: "获取会话列表失败"
+      log_message: "Get session list failed"
+  internet_check_errors:
+    200:
+      hint_message: "已经成功登录"
+      log_message: "Already logged in"
+      # default
+    -1:
+      hint_message: "还未登陆"
+      log_message: "Currently logged out"
+  intranet_check_errors:
+    200:
+      hint_message: "认证服务器可用"
+      log_message: "Portal server is available"
+      # default
+    -1:
+      hint_message: "认证服务器不可用"
+      log_message: "Portal server is unavailable"
