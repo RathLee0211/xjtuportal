@@ -1,5 +1,10 @@
 package utils
 
+import (
+	"os"
+	"path/filepath"
+)
+
 func RemoveDuplicateStrings(s []string) (result []string, resultMap map[string]struct{}) {
 	result = make([]string, 0)
 	resultMap = make(map[string]struct{})
@@ -22,4 +27,12 @@ func DeleteEmptyString(s []string) []string {
 		}
 	}
 	return r
+}
+
+func GetCurrentRunningDir() string {
+	dir, err := os.Executable()
+	if err != nil {
+		return "."
+	}
+	return filepath.Dir(dir)
 }

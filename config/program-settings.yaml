@@ -82,8 +82,8 @@ app:
       login_errors:
         200:
           error_code: 0
-          error_description: ""
           hint_message: "登录成功"
+          error_description: ""
           log_level: WARNING
           log_message: "Login success"
         21:

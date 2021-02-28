@@ -5,6 +5,7 @@ import (
 	"auto-portal-auth/component/basic"
 	"auto-portal-auth/component/device"
 	"auto-portal-auth/component/http"
+	"auto-portal-auth/component/utils"
 	"bufio"
 	"flag"
 	"fmt"
@@ -33,11 +34,6 @@ var (
 	}
 )
 
-const (
-	UserConfigFile    = "user-settings.yaml"
-	ProgramConfigFile = "program-settings.yaml"
-)
-
 func pause(hint string) {
 	fmt.Println(hint)
 	_, _, _ = keyboard.GetSingleKey()
@@ -57,8 +53,10 @@ type ShellUi struct {
 
 func InitShellUi() *ShellUi {
 
+	currentRunningDir := utils.GetCurrentRunningDir()
+
 	versionFlag := flag.Bool("v", false, "Show current version")
-	configFlag := flag.String("c", "./config", "The path of config folder")
+	configFlag := flag.String("c", fmt.Sprintf("%s/%s", currentRunningDir, "config"), "The path of config folder")
 	loginFlag := flag.Bool("i", false, "Login using auth data given in config file")
 	logoutFlag := flag.Int("o", -1, "Logout with given index (shown by -s)")
 	showSessionFlag := flag.Bool("s", false, "List current sessions")
@@ -71,8 +69,8 @@ func InitShellUi() *ShellUi {
 	}
 
 	configHelper, err := basic.InitConfigHelper(
-		fmt.Sprintf("%s/%s", *configFlag, UserConfigFile),
-		fmt.Sprintf("%s/%s", *configFlag, ProgramConfigFile),
+		fmt.Sprintf("%s/%s", *configFlag, basic.UserConfigFile),
+		fmt.Sprintf("%s/%s", *configFlag, basic.ProgramConfigFile),
 	)
 	if err != nil {
 		basic.LoggerTemp.AddLog(basic.FATAL, fmt.Sprintf("%v", err))
@@ -206,7 +204,7 @@ func (shellUi *ShellUi) quickSettingInteract() bool {
 			return false
 		}
 		// Write to file
-		err = ioutil.WriteFile(fmt.Sprintf("%s/%s", shellUi.configDir, UserConfigFile), ret, 0644)
+		err = ioutil.WriteFile(fmt.Sprintf("%s/%s", shellUi.configDir, basic.UserConfigFile), ret, 0644)
 		if err != nil { // Write to file err
 			shellUi.loggerHelper.AddLog(basic.DEBUG, fmt.Sprintf("%v", err))
 			fmt.Println(interactHint.BasicHint.Failed)

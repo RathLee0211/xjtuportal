@@ -12,6 +12,10 @@ const (
 	Windows = "windows"
 	Linux   = "linux"
 
+	// Config file names
+	UserConfigFile    = "user-settings.yaml"
+	ProgramConfigFile = "program-settings.yaml"
+
 	// Error handlers
 	LoginErrors      = "login_errors"
 	LogoutErrors     = "logout_errors"
@@ -60,7 +64,7 @@ type UserSettings struct {
 	UserDeviceSettings UserDeviceSettings `yaml:"device"`
 	UserAppSettings    struct {
 		UserPortalSettings UserPortalSettings `yaml:"portal"`
-	} `yaml:"session"`
+	} `yaml:"app"`
 	UserLoggerSettings UserLoggerSettings `yaml:"logger"`
 	UserUISettings     UserUISettings     `yaml:"ui"`
 }
@@ -90,8 +94,8 @@ type ProgramDnsSettings struct {
 		Timeout int `yaml:"timeout"`
 	} `yaml:"connect"`
 	Testing struct {
-		Times int `yaml:"times"`
-	}
+		RetryTimes int `yaml:"retry_times"`
+	} `yaml:"testing"`
 }
 
 type ProgramConnectivitySettings struct {
