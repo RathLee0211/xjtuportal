@@ -1,9 +1,11 @@
 package http
 
 import (
-	"auto-portal-auth/component/base"
+	"auto-portal-auth/component/basic"
 	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"time"
@@ -15,58 +17,108 @@ func getUrl(protocol string, hostname string, path string) (url string) {
 }
 
 type RequestHelper struct {
-	UserAgent      string
-	AcceptLanguage string
-	TimeoutSec     int
+	loggerHelper    *basic.LoggerHelper
+	requestSettings *basic.ProgramRequestSettings
 }
 
-func InitRequestHeader(configHelper *base.ConfigHelper) (httpHelper *RequestHelper, err error) {
+func InitRequestHelper(configHelper *basic.ConfigHelper, loggerHelper *basic.LoggerHelper) (httpHelper *RequestHelper, err error) {
 
 	if configHelper == nil {
-		err = errors.New("ConfigHelper is invalid")
+		err = errors.New("http/request: ConfigHelper is invalid")
+		return nil, err
+	}
+
+	if loggerHelper == nil {
+		err := errors.New("http/request: logger is invalid")
 		return nil, err
 	}
 
 	httpHelper = &RequestHelper{
-		UserAgent:      configHelper.ProgramSettings.Http.Header.UserAgent,
-		AcceptLanguage: configHelper.ProgramSettings.Http.Header.AcceptLanguage,
-		TimeoutSec:     configHelper.ProgramSettings.Http.Connect.Timeout,
+		loggerHelper:    loggerHelper,
+		requestSettings: &configHelper.ProgramSettings.ProgramRequestSettings,
 	}
 
 	return httpHelper, nil
 }
 
-func (httpHelper *RequestHelper) setBasicHeader(request *http.Request) error {
-	if request == nil {
-		return errors.New("invalid request while setting header")
-	}
-	request.Header.Set("Accept-Language", httpHelper.AcceptLanguage)
-	request.Header.Set("User-Agent", httpHelper.UserAgent)
-	return nil
+func (requestHelper *RequestHelper) redirectPolicy(_ *http.Request, _ []*http.Request) error {
+	return http.ErrUseLastResponse
 }
 
-func (httpHelper *RequestHelper) SendRequest(request *http.Request) (*http.Response, error) {
+func (requestHelper *RequestHelper) SendRequest(
+	url string, method string, data io.Reader, header *http.Header, cookies []*http.Cookie,
+) (
+	response *http.Response, body []byte, StatusCode int, error error,
+) {
+
+	// Create request
+	request, err := http.NewRequest(method, url, data)
+	if err != nil {
+		err = errors.New(fmt.Sprintf("http/request: Cannot create request [%v]", err))
+		return nil, nil, -1, err
+	}
+
+	// Set header
+	if header != nil {
+		request.Header = *header
+	}
+	for key, value := range requestHelper.requestSettings.Header {
+		request.Header.Set(key, value)
+	}
+
+	// Set cookies
+	for _, cookie := range cookies {
+		request.AddCookie(cookie)
+	}
+
+	// Create http client
 	defaultTransport := &http.Transport{
-		Proxy: nil,
+		Proxy: nil, // No proxy
 		DialContext: (&net.Dialer{
-			Timeout: time.Duration(httpHelper.TimeoutSec) * time.Second,
+			Timeout: time.Duration(requestHelper.requestSettings.Connect.Timeout) * time.Second,
 		}).DialContext,
 	}
-	client := &http.Client{Transport: defaultTransport}
-	err := httpHelper.setBasicHeader(request)
-	if err != nil {
-		return nil, err
+
+	client := &http.Client{
+		Transport:     defaultTransport,
+		CheckRedirect: requestHelper.redirectPolicy,
 	}
-	response, err := client.Do(request)
-	if err != nil { // Error happens
-		return nil, err
+
+	requestHelper.loggerHelper.AddLog(basic.DEBUG, fmt.Sprintf("http/request: Send [%s] request to [%s]", method, url))
+
+	// Do request
+	response, err = client.Do(request)
+
+	// Request error
+	if err != nil { // Request error
+		return nil, nil, -1, err
 	}
 
 	// Response empty error
 	if response == nil {
-		err = errors.New("empty response")
-		return nil, err
+		err = errors.New("http/request: empty response")
+		return nil, nil, -1, err
+	}
+	requestHelper.loggerHelper.AddLog(basic.DEBUG, fmt.Sprintf("http/request: response\n%+v", *response))
+
+	// Read respond body error
+	content, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return nil, nil, -1, err
 	}
 
-	return response, response.Body.Close()
+	requestHelper.loggerHelper.AddLog(basic.DEBUG, fmt.Sprintf("http/request: response body\n%s", string(content)))
+
+	err = response.Body.Close()
+	if err != nil {
+		return nil, nil, -1, err
+	}
+
+	// Response code error
+	if response.StatusCode >= 400 {
+		err = errors.New(fmt.Sprintf("http/request: response return error code [%d]", response.StatusCode))
+		return nil, nil, response.StatusCode, err
+	}
+
+	return response, content, response.StatusCode, nil
 }

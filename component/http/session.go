@@ -1,241 +1,224 @@
 package http
 
 import (
-	"auto-portal-auth/component/base"
+	"auto-portal-auth/component/basic"
 	"auto-portal-auth/component/device"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
+	"strconv"
 )
 
-type Session struct {
-	DeviceType        string `json:"deviceType"`
-	ExperienceEndTime int64  `json:"experienceEndTime"`
-	Username          string `json:"user_name"`
-	SessionId         string `json:"acct_session_id"`
-	NasIpAddr         string `json:"nas_ip_address"`
-	UserIpAddr        string `json:"framed_ip_address"`
-	UserMacAddr       string `json:"calling_station_id"`
-	StartTime         string `json:"acct_start_time"`
-	UniqueId          string `json:"acct_unique_id"`
-	IsCurrentSession  bool   `json:"-"`
+type SessionListPortal struct {
+	Concurrency string `json:"concurrency"`
+	Sessions    []struct {
+		DeviceType        string `json:"deviceType"`
+		ExperienceEndTime int64  `json:"experienceEndTime"`
+		Username          string `json:"user_name"`
+		SessionId         string `json:"acct_session_id"`
+		NasIpAddr         string `json:"nas_ip_address"`
+		UserIpAddr        string `json:"framed_ip_address"`
+		UserMacAddr       string `json:"calling_station_id"`
+		StartTime         string `json:"acct_start_time"`
+		UniqueId          string `json:"acct_unique_id"`
+	} `json:"sessions"`
 }
 
-type SessionList struct {
-	Concurrency int       `json:"concurrency"`
-	Sessions    []Session `json:"sessions"`
+type Session struct {
+	SessionId        string
+	NasIpAddr        string
+	UserIpAddr       string
+	UserMacAddr      string
+	StartTime        string
+	UniqueId         string
+	IsCurrentSession bool
 }
 
 type SessionListHelper struct {
-	SessionList    *SessionList
-	MacSessionMap  map[string]Session
+	OnlineHelper    *OnlineHelper
+	loggerHelper    *basic.LoggerHelper
+	sessionSettings *basic.ProgramSessionSettings
+
+	sessionListUrl string
+	logoutUrl      string
+	getIpUrl       string
+
+	MacSessionMap  map[string]*Session
 	SessionMacList []string
-
-	SessionListUrl string
-	LogoutUrl      string
-	GetIpUrl       string
-
-	onlineHelper *OnlineHelper
-	loggerHelper *base.LoggerHelper
 }
 
-func InitSessionListHelper(configHelper *base.ConfigHelper, loggerHelper *base.LoggerHelper) (*SessionListHelper, error) {
+func InitSessionListHelper(
+	configHelper *basic.ConfigHelper,
+	loggerHelper *basic.LoggerHelper,
+	requestHelper *RequestHelper,
+) (*SessionListHelper, error) {
 
-	if loggerHelper == nil {
-		err := errors.New("logger is invalid")
-		return nil, err
-	}
-
-	if configHelper == nil {
-		err := errors.New("ConfigHelper is invalid")
-		return nil, err
-	}
-
-	onlineHelper, err := InitOnlineHelper(configHelper, loggerHelper)
+	onlineHelper, err := InitOnlineHelper(configHelper, loggerHelper, requestHelper)
 	if err != nil {
-		err = errors.New(fmt.Sprintf("Error creating OnlineHelper [%v]", err))
+		err = errors.New(fmt.Sprintf("http/session: Error creating OnlineHelper [%v]", err))
 		return nil, err
 	}
 
 	sessionListHelper := &SessionListHelper{
-
-		SessionListUrl: getUrl("http",
-			configHelper.ProgramSettings.Api.PortalServer.Hostname,
-			configHelper.ProgramSettings.Api.PortalServer.SessionListPath,
+		OnlineHelper:    onlineHelper,
+		loggerHelper:    loggerHelper,
+		sessionSettings: &configHelper.ProgramSettings.ProgramSessionSettings,
+		sessionListUrl: getUrl("http",
+			configHelper.ProgramSettings.ProgramSessionSettings.PortalServer.Hostname,
+			configHelper.ProgramSettings.ProgramSessionSettings.PortalServer.SessionListPath,
 		),
-		LogoutUrl: getUrl("http",
-			configHelper.ProgramSettings.Api.PortalServer.Hostname,
-			configHelper.ProgramSettings.Api.PortalServer.LogoutPath,
+		logoutUrl: getUrl("http",
+			configHelper.ProgramSettings.ProgramSessionSettings.PortalServer.Hostname,
+			configHelper.ProgramSettings.ProgramSessionSettings.PortalServer.LogoutPath,
 		),
-		GetIpUrl: getUrl("http",
-			configHelper.ProgramSettings.Api.SpeedCheckServer.Hostname,
-			configHelper.ProgramSettings.Api.SpeedCheckServer.GetIpPath,
+		getIpUrl: getUrl("http",
+			configHelper.ProgramSettings.ProgramSessionSettings.SpeedCheckServer.Hostname,
+			configHelper.ProgramSettings.ProgramSessionSettings.SpeedCheckServer.GetIpPath,
 		),
-
-		onlineHelper: onlineHelper,
-		loggerHelper: loggerHelper,
+		MacSessionMap:  make(map[string]*Session),
+		SessionMacList: make([]string, 0),
 	}
 
 	return sessionListHelper, nil
 
 }
 
-func (sessionListHelper *SessionListHelper) SessionListGet() (statusCode int, err error) {
-	statusCode, err = sessionListHelper.onlineHelper.GetAuthToken()
+func (sessionListHelper *SessionListHelper) sessionListPortalGet() (sessionListPortal *SessionListPortal, err error) {
 
+	_, err = sessionListHelper.OnlineHelper.GetAuthToken()
 	if err != nil {
-		err = errors.New(fmt.Sprintf("Cannot get token [%v]", err))
-		return statusCode, err
+		err = errors.New(fmt.Sprintf("http/session: Cannot get token [%v]", err))
+		return nil, err
 	}
 
-	request, err := http.NewRequest("GET", sessionListHelper.SessionListUrl, nil)
-	if err != nil {
-		err = errors.New(fmt.Sprintf("Cannot create online request [%v]", err))
-		return -1, err
-	}
-	request.AddCookie(&http.Cookie{
-		Name: "token", Value: sessionListHelper.onlineHelper.onlineResponse.Token,
+	header := &http.Header{}
+	header.Set("Authorization", sessionListHelper.OnlineHelper.OnlineResponse.Token)
+	cookies := make([]*http.Cookie, 0, 2)
+	cookies = append(cookies, &http.Cookie{
+		Name:  "token",
+		Value: sessionListHelper.OnlineHelper.OnlineResponse.Token,
 	})
-	request.Header.Set(
-		"Authorization", sessionListHelper.onlineHelper.onlineResponse.Token,
+
+	_, body, _, err := sessionListHelper.OnlineHelper.requestHelper.SendRequest(
+		sessionListHelper.sessionListUrl,
+		"GET",
+		nil,
+		header,
+		cookies,
 	)
 
-	sessionListHelper.loggerHelper.AddLog(base.DEBUG,
-		fmt.Sprintf("Send SessionList Get to [%s]", sessionListHelper.SessionListUrl))
-
-	response, err := sessionListHelper.onlineHelper.httpHelper.SendRequest(request)
 	if err != nil {
-		return -1, err
+		return nil, err
 	}
 
-	sessionListHelper.loggerHelper.AddLog(base.DEBUG,
-		fmt.Sprintf("SessionList response:\n%+v", response))
-
-	// Response code error
-	if response.StatusCode != 200 {
-		err = errors.New("session list response return error code")
-		return response.StatusCode, err
-	}
-
-	// Read response body error
-	content, err := ioutil.ReadAll(response.Body)
+	sessionListPortal = &SessionListPortal{}
+	err = json.Unmarshal(body, sessionListPortal)
 	if err != nil {
-		return -1, err
+		return nil, err
 	}
 
-	sessionList := &SessionList{}
-	err = json.Unmarshal(content, sessionListHelper)
-	if err != nil {
-		return -1, err
-	}
-	sessionListHelper.SessionList = sessionList
-
-	return 200, nil
+	return sessionListPortal, nil
 
 }
 
-func (sessionListHelper *SessionListHelper) InitSessionList() (statusCode int, err error) {
-	statusCode, err = sessionListHelper.SessionListGet()
+func (sessionListHelper *SessionListHelper) InitSessionListByPortal() (statusCode int, err error) {
+
+	sessionListHelper.SessionMacList = make([]string, 0)
+	sessionListHelper.MacSessionMap = make(map[string]*Session)
+
+	sessionListPortal, err := sessionListHelper.sessionListPortalGet()
 
 	if err != nil {
 		return statusCode, err
 	}
 
-	if sessionListHelper.SessionList.Concurrency == 0 {
-		err = errors.New("error getting concurrency")
+	if concurrency, err := strconv.Atoi(sessionListPortal.Concurrency); err != nil || concurrency == 0 {
+		err = errors.New("http/session: error getting concurrency")
 		return -1, err
 	}
 
-	if len(sessionListHelper.SessionList.Sessions) == 0 {
-		sessionListHelper.loggerHelper.AddLog(base.INFO, "No session")
+	if len(sessionListPortal.Sessions) == 0 {
+		sessionListHelper.loggerHelper.AddLog(basic.WARNING, "http/session: No session")
 		return 200, nil
 	}
 
-	for _, session := range sessionListHelper.SessionList.Sessions {
+	for _, sessionPortal := range sessionListPortal.Sessions {
 
 		// Invalid session check
-		if session.UserMacAddr == "" ||
-			session.UserIpAddr == "" ||
-			session.UniqueId == "" {
-			sessionListHelper.loggerHelper.AddLog(base.WARNING, fmt.Sprintf("Invalid session:\n%+v", session))
+		if sessionPortal.UserMacAddr == "" ||
+			sessionPortal.UserIpAddr == "" ||
+			sessionPortal.UniqueId == "" {
+			sessionListHelper.loggerHelper.AddLog(basic.WARNING, fmt.Sprintf("http/session: Invalid session:\n%+v", sessionPortal))
 			continue
 		}
 
 		// Session with invalid MAC address check
-		standardMac, err := device.MacStandardize(session.UserMacAddr)
+		standardMac, err := device.MacStandardize(sessionPortal.UserMacAddr)
 		if err != nil {
-			sessionListHelper.loggerHelper.AddLog(base.WARNING,
-				fmt.Sprintf("Session with invalid MAC address [%s]", session.UserMacAddr))
+			sessionListHelper.loggerHelper.AddLog(basic.WARNING,
+				fmt.Sprintf("http/session: Session with invalid MAC address [%s]", sessionPortal.UserMacAddr))
 			continue
 		}
-		session.UserMacAddr = standardMac
+		sessionPortal.UserMacAddr = standardMac
 
 		// Session with invalid user IP address check
-		standardIp := net.ParseIP(session.UserIpAddr)
+		standardIp := net.ParseIP(sessionPortal.UserIpAddr)
 		if standardIp == nil {
-			sessionListHelper.loggerHelper.AddLog(base.WARNING,
-				fmt.Sprintf("Session with invalid user IP address [%s]", session.UserIpAddr))
+			sessionListHelper.loggerHelper.AddLog(basic.WARNING,
+				fmt.Sprintf("http/session: Session with invalid user IP address [%s]", sessionPortal.UserIpAddr))
 			continue
 		}
-		session.UserIpAddr = standardIp.String()
+		sessionPortal.UserIpAddr = standardIp.String()
 
 		// Duplicated session check
-		if _, ok := sessionListHelper.MacSessionMap[session.UserMacAddr]; ok {
-			sessionListHelper.loggerHelper.AddLog(base.WARNING,
-				fmt.Sprintf("Duplicated session with MAC address [%s]", session.UserMacAddr))
+		if _, ok := sessionListHelper.MacSessionMap[sessionPortal.UserMacAddr]; ok {
+			sessionListHelper.loggerHelper.AddLog(basic.WARNING,
+				fmt.Sprintf("http/session: Duplicated session with MAC address [%s]", sessionPortal.UserMacAddr))
 			continue
 		}
 
 		// After-handle the session
-		session.IsCurrentSession = false
+		session := &Session{
+			SessionId:        sessionPortal.SessionId,
+			NasIpAddr:        sessionPortal.NasIpAddr,
+			UserIpAddr:       sessionPortal.UserIpAddr,
+			UserMacAddr:      sessionPortal.UserMacAddr,
+			StartTime:        sessionPortal.StartTime,
+			UniqueId:         sessionPortal.UniqueId,
+			IsCurrentSession: false,
+		}
 
 		// Add to list or map
-		sessionListHelper.SessionMacList = append(sessionListHelper.SessionMacList, session.UserMacAddr)
-		sessionListHelper.MacSessionMap[session.UserMacAddr] = session
+		sessionListHelper.SessionMacList = append(sessionListHelper.SessionMacList, sessionPortal.UserMacAddr)
+		sessionListHelper.MacSessionMap[sessionPortal.UserMacAddr] = session
 	}
 
 	return 200, nil
 
 }
 
-func (sessionListHelper *SessionListHelper) findCurrentSessionBySpeedTestApp() (err error) {
-	request, err := http.NewRequest("GET", sessionListHelper.GetIpUrl, nil)
-	if err != nil {
-		err = errors.New(fmt.Sprintf("Cannot create GetIp request [%v]", err))
-		return err
-	}
+func (sessionListHelper *SessionListHelper) FindCurrentSessionBySpeedTestApp() (err error) {
 
-	sessionListHelper.loggerHelper.AddLog(base.DEBUG,
-		fmt.Sprintf("Send GetIP Get [%s]", sessionListHelper.GetIpUrl))
-
-	response, err := sessionListHelper.onlineHelper.httpHelper.SendRequest(request)
+	_, body, _, err := sessionListHelper.OnlineHelper.requestHelper.SendRequest(
+		sessionListHelper.getIpUrl,
+		"GET",
+		nil,
+		nil,
+		make([]*http.Cookie, 0, 0),
+	)
 	if err != nil {
 		return err
 	}
 
-	sessionListHelper.loggerHelper.AddLog(base.DEBUG,
-		fmt.Sprintf("GetIP response:\n%+v", response))
-
-	// Response code error
-	if response.StatusCode != 200 {
-		err = errors.New("get ip response return error code")
-		return err
-	}
-
-	// Read response body error
-	content, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		return err
-	}
-
-	currentIp := net.ParseIP(string(content))
+	currentIp := net.ParseIP(string(body))
 	if currentIp == nil {
-		err = errors.New("cannot get a valid IP")
+		err = errors.New("http/session: cannot get a valid IP")
 		return err
 	}
+	sessionListHelper.loggerHelper.AddLog(basic.INFO,
+		fmt.Sprintf("http/session: Current session IP: %s", currentIp.String()))
 
 	for key, session := range sessionListHelper.MacSessionMap {
 		if session.UserIpAddr == currentIp.String() {
@@ -245,12 +228,12 @@ func (sessionListHelper *SessionListHelper) findCurrentSessionBySpeedTestApp() (
 		}
 	}
 
-	err = errors.New(fmt.Sprintf("there's no session with IP [%s]", currentIp.String()))
+	err = errors.New(fmt.Sprintf("http/session: there's no session with IP [%s]", currentIp.String()))
 	return err
 
 }
 
-func (sessionListHelper *SessionListHelper) findCurrentSessionByKnownMacList(macList []string) (err error) {
+func (sessionListHelper *SessionListHelper) FindCurrentSessionByLocalMacList(macList []string) (err error) {
 
 	for _, mac := range macList {
 		if session, ok := sessionListHelper.MacSessionMap[mac]; ok {
@@ -260,51 +243,35 @@ func (sessionListHelper *SessionListHelper) findCurrentSessionByKnownMacList(mac
 		}
 	}
 
-	err = errors.New("there's no session that has MAC address in known MAC list")
+	err = errors.New("http/session: there's no session that has MAC address in local MAC list")
 	return err
 
 }
 
-func (sessionListHelper *SessionListHelper) logoutDelete(uniqueId string) (statusCode int, err error) {
+func (sessionListHelper *SessionListHelper) LogoutDelete(uniqueId string) (statusCode int, err error) {
 
-	statusCode, err = sessionListHelper.onlineHelper.GetAuthToken()
-
+	statusCode, err = sessionListHelper.OnlineHelper.GetAuthToken()
 	if err != nil {
-		err = errors.New(fmt.Sprintf("Cannot get token [%v]", err))
+		err = errors.New(fmt.Sprintf("http/session: Cannot get token [%v]", err))
 		return statusCode, err
 	}
 
-	request, err := http.NewRequest("DELETE",
-		fmt.Sprintf("%s/%s", sessionListHelper.LogoutUrl, uniqueId),
-		nil,
-	)
-	if err != nil {
-		err = errors.New(fmt.Sprintf("Cannot create Logout request [%v]", err))
-		return -1, err
-	}
-	request.AddCookie(&http.Cookie{
-		Name: "token", Value: sessionListHelper.onlineHelper.onlineResponse.Token,
+	header := &http.Header{}
+	header.Set("Authorization", sessionListHelper.OnlineHelper.OnlineResponse.Token)
+	cookies := make([]*http.Cookie, 0, 2)
+	cookies = append(cookies, &http.Cookie{
+		Name:  "token",
+		Value: sessionListHelper.OnlineHelper.OnlineResponse.Token,
 	})
-	request.Header.Set(
-		"Authorization", sessionListHelper.onlineHelper.onlineResponse.Token,
+
+	_, _, statusCode, err = sessionListHelper.OnlineHelper.requestHelper.SendRequest(
+		fmt.Sprintf("%s/%s", sessionListHelper.logoutUrl, uniqueId),
+		"DELETE",
+		nil,
+		header,
+		cookies,
 	)
 
-	sessionListHelper.loggerHelper.AddLog(base.DEBUG,
-		fmt.Sprintf("Send Logout Get to [%s]", sessionListHelper.LogoutUrl))
-
-	response, err := sessionListHelper.onlineHelper.httpHelper.SendRequest(request)
-	if err != nil {
-		return -1, err
-	}
-
-	sessionListHelper.loggerHelper.AddLog(base.DEBUG,
-		fmt.Sprintf("SessionList response:\n%+v", response))
-
-	// Response code error
-	if response.StatusCode != 200 {
-		err = errors.New("logout response return error code")
-		return response.StatusCode, err
-	}
-	return 200, nil
+	return statusCode, err
 
 }

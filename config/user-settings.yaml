@@ -1,31 +1,18 @@
-# Your authentication information
-auth_data:
-  # xjtu, cmcc, CUCC
-  # Only xjtu is available
-  domain: xjtu
-  username: "3120123456"
-  password: "zhangsan123456"
-
-session_manage:
-  # Auto logout device if device number is overload, default is false
-  auto_logout: false
-  # The familiar MAC list here will be used to logout in the order defined here
-  device_list:
-    - "11:22:33:44:55:66"
-    - "aa:bb:cc:dd:ee:ff"
-
-log:
-  # stdout, file or both, default is both
-  log_output:
-    - stdout
-    - file
-  # DEBUG, INFO, WARNING, ERROR, FATAL, MUTE, default is WARNING
-  log_level: ERROR
-  # Enabled when log_output contains file, default is "log.txt" in current working directory
-  log_file: log.txt
-  # If using color to specify different level of log
-  log_color: true
-
-interface:
-  # Run mode: interact or command
-  mode: interact
+online:
+    auth_data:
+        domain: xjtu
+        username: zhangsan
+        password: "123456789"
+device:
+    known_mac_list: ['11:22:33:44:55:66', 'aa:bb:cc:dd:ee:ff']
+    use_interface: true
+session:
+    portal:
+        auto_logout: true
+logger:
+    output_writer: [stdout, file]
+    level: WARNING
+    file_path: run.log
+    color: true
+ui:
+    mode: interact

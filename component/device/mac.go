@@ -1,7 +1,7 @@
 package device
 
 import (
-	"auto-portal-auth/component/base"
+	"auto-portal-auth/component/basic"
 	"auto-portal-auth/component/utils"
 	"errors"
 	"fmt"
@@ -51,32 +51,37 @@ func GetLocalInterfaceMac() ([]string, error) {
 }
 
 type MacListHelper struct {
-	loggerHelper *base.LoggerHelper
-	KnownMacMap  map[string]struct{}
-	KnownMacList []string
+	loggerHelper       *basic.LoggerHelper
+	userDeviceSettings *basic.UserDeviceSettings
+	KnownMacMap        map[string]struct{}
+	KnownMacList       []string
+	LocalMacList       []string
 }
 
-func InitMacListHelper(configHelper *base.ConfigHelper, loggerHelper *base.LoggerHelper) (*MacListHelper, error) {
+func InitMacListHelper(configHelper *basic.ConfigHelper, loggerHelper *basic.LoggerHelper) (*MacListHelper, error) {
 
 	if loggerHelper == nil {
-		err := errors.New("logger is invalid")
+		err := errors.New("device/mac: logger is invalid")
 		return nil, err
 	}
 
 	if configHelper == nil {
-		err := errors.New("ConfigHelper is invalid")
+		err := errors.New("device/mac: ConfigHelper is invalid")
 		return nil, err
 	}
 
-	macListHelper := &MacListHelper{}
-	macListHelper.loggerHelper = loggerHelper
+	macListHelper := &MacListHelper{
+		loggerHelper:       loggerHelper,
+		userDeviceSettings: &configHelper.UserSettings.UserDeviceSettings,
+		KnownMacList:       configHelper.UserSettings.UserDeviceSettings.KnownMacList,
+	}
 
 	// Standardize the MAC addresses from config
-	knownMacList, errorMacList := MacListStandardize(configHelper.UserSettings.SessionManage.DeviceList)
+	knownMacList, errorMacList := MacListStandardize(macListHelper.KnownMacList)
 	if len(errorMacList) > 0 {
-		macListHelper.loggerHelper.AddLog(base.WARNING,
+		macListHelper.loggerHelper.AddLog(basic.WARNING,
 			fmt.Sprintf(
-				"MAC address(es) with invalid format:\n%s",
+				"device/mac: MAC address(es) with invalid format:\n%s",
 				strings.Join(errorMacList, ",\n"),
 			))
 	}
@@ -84,18 +89,22 @@ func InitMacListHelper(configHelper *base.ConfigHelper, loggerHelper *base.Logge
 	// Get MAC addresses from local interfaces
 	localMacList, err := GetLocalInterfaceMac()
 	if err != nil {
-		macListHelper.loggerHelper.AddLog(base.WARNING,
-			fmt.Sprintf("Cannot get network interface(s) [%v]", err))
+		macListHelper.loggerHelper.AddLog(basic.WARNING,
+			fmt.Sprintf("device/mac: Cannot get network interface(s) [%v]", err))
 	} else {
-		macListHelper.loggerHelper.AddLog(base.DEBUG,
+		macListHelper.loggerHelper.AddLog(basic.DEBUG,
 			fmt.Sprintf(
-				"MAC address(es) of local interface(s):\n%s",
-				strings.Join(localMacList, ",\n"),
+				"device/mac: MAC address(es) of local interface(s):\n%s",
+				strings.Join(localMacList, ", "),
 			))
+		macListHelper.LocalMacList = localMacList
+	}
+
+	if macListHelper.userDeviceSettings.UseInterface {
+		knownMacList = append(knownMacList, localMacList...)
 	}
 
 	// Merge and remove duplicate
-	knownMacList = append(knownMacList, localMacList...)
 	macListHelper.KnownMacList, macListHelper.KnownMacMap = utils.RemoveDuplicateStrings(knownMacList)
 
 	return macListHelper, nil

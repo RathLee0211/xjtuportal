@@ -1,12 +1,12 @@
 package test
 
 import (
-	"auto-portal-auth/component/base"
+	"auto-portal-auth/component/basic"
 )
 
-func readConfig() (*base.ConfigHelper, *base.LoggerHelper, error) {
+func readConfig() (*basic.ConfigHelper, *basic.LoggerHelper, error) {
 
-	configHelper, err := base.InitConfigHelper(
+	configHelper, err := basic.InitConfigHelper(
 		"../config/user-settings.yaml",
 		"../config/program-settings.yaml",
 	)
@@ -14,7 +14,7 @@ func readConfig() (*base.ConfigHelper, *base.LoggerHelper, error) {
 		return nil, nil, err
 	}
 
-	loggerHelper, err := base.InitLoggerHelper(configHelper)
+	loggerHelper, err := basic.InitLoggerHelper(configHelper)
 	if err != nil {
 		return nil, nil, err
 	}

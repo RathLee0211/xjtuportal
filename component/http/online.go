@@ -1,12 +1,11 @@
 package http
 
 import (
-	"auto-portal-auth/component/base"
+	"auto-portal-auth/component/basic"
 	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 )
 
@@ -28,100 +27,105 @@ type OnlineResponse struct {
 }
 
 type OnlineHelper struct {
-	loggerHelper    *base.LoggerHelper
-	httpHelper      *RequestHelper
-	Url             string
+	loggerHelper          *basic.LoggerHelper
+	requestHelper         *RequestHelper
+	userOnlineSettings    *basic.UserOnlineSettings
+	programOnlineSettings *basic.ProgramOnlineSettings
+
+	onlineUrl       string
 	RedirectUrl     string
-	FakeRedirectUrl string
-	AuthData        *AuthData
-	onlineResponse  *OnlineResponse
+	fakeRedirectUrl string
+	authData        *AuthData
+	OnlineResponse  *OnlineResponse
 }
 
-func InitOnlineHelper(configHelper *base.ConfigHelper, loggerHelper *base.LoggerHelper) (*OnlineHelper, error) {
-
-	if loggerHelper == nil {
-		err := errors.New("logger is invalid")
-		return nil, err
-	}
+func InitOnlineHelper(configHelper *basic.ConfigHelper,
+	loggerHelper *basic.LoggerHelper,
+	requestHelper *RequestHelper,
+) (*OnlineHelper, error) {
 
 	if configHelper == nil {
-		err := errors.New("ConfigHelper is invalid")
+		err := errors.New("http/online: ConfigHelper is invalid")
 		return nil, err
 	}
 
-	httpHelper, err := InitRequestHeader(configHelper)
-	if err != nil {
-		err = errors.New(fmt.Sprintf("Error when creating RequestHelper [%v]", err))
+	if loggerHelper == nil {
+		err := errors.New("http/online: logger is invalid")
+		return nil, err
+	}
+
+	if requestHelper == nil {
+		err := errors.New("http/online: RequestHelper is invalid")
 		return nil, err
 	}
 
 	onlineHelper := &OnlineHelper{
-		loggerHelper: loggerHelper,
-		httpHelper:   httpHelper,
-		Url: getUrl("http",
-			configHelper.ProgramSettings.Api.PortalServer.Hostname,
-			configHelper.ProgramSettings.Api.PortalServer.LoginPath,
+		loggerHelper:          loggerHelper,
+		requestHelper:         requestHelper,
+		userOnlineSettings:    &configHelper.UserSettings.UserOnlineSettings,
+		programOnlineSettings: &configHelper.ProgramSettings.ProgramOnlineSettings,
+		onlineUrl: getUrl("http",
+			configHelper.ProgramSettings.ProgramOnlineSettings.PortalServer.Hostname,
+			configHelper.ProgramSettings.ProgramOnlineSettings.PortalServer.OnlinePath,
 		),
 		RedirectUrl: "",
-		FakeRedirectUrl: getUrl("http",
-			configHelper.ProgramSettings.Api.PortalServer.Hostname,
-			configHelper.ProgramSettings.Api.PortalServer.FakeRedirectPath,
+		fakeRedirectUrl: getUrl("http",
+			configHelper.ProgramSettings.ProgramOnlineSettings.PortalServer.Hostname,
+			configHelper.ProgramSettings.ProgramOnlineSettings.PortalServer.FakeRedirectPath,
 		),
-		AuthData: &AuthData{
+		authData: &AuthData{
 			DeviceType:  "PC",
 			RedirectUrl: "",
 			DataType:    "login",
 			Username: fmt.Sprintf("%s@%s",
-				configHelper.UserSettings.AuthData.Username,
-				configHelper.UserSettings.AuthData.Domain),
-			Password: configHelper.UserSettings.AuthData.Password,
+				configHelper.UserSettings.UserOnlineSettings.AuthData.Username,
+				configHelper.UserSettings.UserOnlineSettings.AuthData.Domain),
+			Password: configHelper.UserSettings.UserOnlineSettings.AuthData.Password,
 		},
+		OnlineResponse: nil,
 	}
 
 	return onlineHelper, nil
 }
 
 func (onlineHelper *OnlineHelper) OnlinePost(redirectUrl string) (int, error) {
-	data, err := json.Marshal(onlineHelper.AuthData)
-	if err != nil {
-		err = errors.New(fmt.Sprintf("Cannot create online request json data [%v]", err))
-		return -1, err
-	}
-	request, err := http.NewRequest("POST", onlineHelper.Url, bytes.NewBuffer(data))
-	if err != nil {
-		err = errors.New(fmt.Sprintf("Cannot create online request [%v]", err))
-		return -1, err
-	}
-	request.AddCookie(&http.Cookie{Name: "redirectUrl", Value: redirectUrl})
-	request.Header.Set("Content-Type", "application/json")
 
-	onlineHelper.loggerHelper.AddLog(base.DEBUG, fmt.Sprintf("Send Online Post to [%s]", onlineHelper.Url))
+	onlineHelper.authData.RedirectUrl = redirectUrl
 
-	response, err := onlineHelper.httpHelper.SendRequest(request)
+	var data bytes.Buffer
+	enc := json.NewEncoder(&data)
+	enc.SetEscapeHTML(false)
+	err := enc.Encode(onlineHelper.authData)
 	if err != nil {
+		err = errors.New(fmt.Sprintf("http/online: Cannot create online request json data [%v]", err))
 		return -1, err
 	}
 
-	onlineHelper.loggerHelper.AddLog(base.DEBUG, fmt.Sprintf("Online response:\n%+v", response))
-	// Response code error
-	if response.StatusCode != 200 {
-		err = errors.New("online response return error code")
-		return response.StatusCode, err
-	}
+	header := &http.Header{}
+	header.Set("Content-Type", "application/json")
 
-	// Read response body error
-	content, err := ioutil.ReadAll(response.Body)
+	cookies := make([]*http.Cookie, 0, 2)
+	cookies = append(cookies, &http.Cookie{Name: "redirectUrl", Value: redirectUrl})
+
+	_, body, statusCode, err := onlineHelper.requestHelper.SendRequest(
+		onlineHelper.onlineUrl,
+		"POST",
+		&data,
+		header,
+		cookies,
+	)
+
 	if err != nil {
-		return -1, err
+		return statusCode, err
 	}
 
 	// Parse json error
 	onlineResponse := &OnlineResponse{}
-	err = json.Unmarshal(content, onlineResponse)
+	err = json.Unmarshal(body, onlineResponse)
 	if err != nil {
 		return -1, err
 	}
-	onlineHelper.onlineResponse = onlineResponse
+	onlineHelper.OnlineResponse = onlineResponse
 
 	return 200, nil
 
@@ -129,19 +133,43 @@ func (onlineHelper *OnlineHelper) OnlinePost(redirectUrl string) (int, error) {
 
 func (onlineHelper *OnlineHelper) GetAuthToken() (statusCode int, err error) {
 	// Request encountered error
-	statusCode, err = onlineHelper.OnlinePost(onlineHelper.FakeRedirectUrl)
+	statusCode, err = onlineHelper.OnlinePost(onlineHelper.fakeRedirectUrl)
 	if err != nil {
 		return statusCode, err
 	}
 
 	// Missing token error
-	if onlineHelper.onlineResponse.Token == "" {
-		err = errors.New("empty token")
+	if onlineHelper.OnlineResponse.Token == "" {
+		err = errors.New("http/online: empty token")
 		return -1, err
 	}
 
-	onlineHelper.loggerHelper.AddLog(base.INFO, "Successfully get token via online post")
+	onlineHelper.loggerHelper.AddLog(basic.DEBUG,
+		fmt.Sprintf("http/online: Successfully get token: [%s]", onlineHelper.OnlineResponse.Token))
 
 	return 200, nil
 
+}
+
+func (onlineHelper *OnlineHelper) GetRedirectUrl() (statusCode int, err error) {
+	// TODO: implementation
+	response, _, statusCode, err := onlineHelper.requestHelper.SendRequest(
+		onlineHelper.programOnlineSettings.BootStrapUrl,
+		"GET",
+		nil,
+		nil,
+		make([]*http.Cookie, 0, 0),
+	)
+	if err != nil {
+		return
+	}
+
+	url := response.Header.Get("Location")
+	if url == "" {
+		err = errors.New("http/online: cannot get redirect url")
+		return -1, err
+
+	}
+	onlineHelper.RedirectUrl = url
+	return 200, nil
 }

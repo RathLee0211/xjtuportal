@@ -1,23 +1,11 @@
 package test
 
 import (
-	"auto-portal-auth/component/base"
+	"auto-portal-auth/component/basic"
 	"auto-portal-auth/component/device"
 	"fmt"
-	"log"
-	"os"
 	"strings"
 	"testing"
-)
-
-var (
-	loggerTemp = &base.LoggerHelper{
-		Logger:            log.New(os.Stdout, "", 0),
-		LogLevel:          0,
-		LogRecordFormat:   "[%s] [%s] %s",
-		LogDatetimeFormat: "2006-01-02 15:04:05",
-		UseColor:          true,
-	}
 )
 
 func TestMacStandardize(t *testing.T) {
@@ -61,7 +49,7 @@ func TestGetLocalInterfaceMac(t *testing.T) {
 	if err != nil {
 		t.Error("Cannot get interface(s)")
 	}
-	loggerTemp.AddLog(base.INFO,
+	basic.LoggerTemp.AddLog(basic.INFO,
 		fmt.Sprintf(
 			"MAC address(es) of local interface(s):\n%s",
 			strings.Join(macList, ",\n"),
@@ -72,13 +60,13 @@ func TestFindLogoutMac(t *testing.T) {
 
 	configHelper, loggerHelper, err := readConfig()
 	if err != nil {
-		loggerTemp.AddLog(base.FATAL, fmt.Sprintf("%v", err))
+		basic.LoggerTemp.AddLog(basic.FATAL, fmt.Sprintf("%v", err))
 		t.Error("Initialization ConfigHelper & LoggerHelper failed")
 		return
 	}
 	macListHelper, err := device.InitMacListHelper(configHelper, loggerHelper)
 	if err != nil {
-		loggerTemp.AddLog(base.ERROR, fmt.Sprintf("%v", err))
+		basic.LoggerTemp.AddLog(basic.ERROR, fmt.Sprintf("%v", err))
 		t.Error("Initialization MacListHelper failed")
 		return
 	}

@@ -1,0 +1,53 @@
+# Your authentication information
+# 你的登录信息
+online:
+  auth_data:
+    # xjtu, cmcc, CUCC
+    # Only xjtu is available
+    # 目前创新港校区仅可使用校园网，故此处保持 xjtu 不要修改
+    domain: xjtu
+    # 你的上网账号，详情移步 http://nethelp.xjtu.edu.cn 查看与修改
+    username: "3120123456"
+    password: "zhangsan123456"
+
+device:
+  # The known MAC list here will be used to logout in the order defined here
+  # 此处列出你常用的设备 MAC 地址，不在这个列表中的 MAC 地址将会被优先登出（自动登出模式）
+  # 当所有已登录会话的设备 MAC 地址均存在于此列表中时，将按照从上往下的顺序选择设备下线
+  known_mac_list:
+    - "11:22:33:44:55:66"
+    - "aa:bb:cc:dd:ee:ff"
+  # If reading MAC address(es) of local interface(s) as a part of known MAC list (true or false)
+  # 是否读取当前设备网卡的 MAC 地址并加入常用 MAC 地址列表中
+  use_interface: true
+
+app:
+  portal:
+    # Auto logout device if device number is overload (true or false)
+    # 是否开启自动下线模式，开启后当登录出现设备数量超限的错误时将自动选择设备下线
+    auto_logout: true
+
+logger:
+  # stdout, file
+  # 日志输出方式，可选控制台标准输出(stdout)和文件输出(file)
+  output_writer:
+    - stdout
+    - file
+  # DEBUG, INFO, WARNING, ERROR, FATAL, MUTE
+  # 选择输出的最低日志级别
+  level: WARNING
+  # Enabled when output_writer contains file, default is "run.log" in current working directory
+  # 当输出方式包含文件输出时，日志输出的文件路径
+  # 若为相对路径，则以当前运行目录为参照
+  file_path: "run.log"
+  # If using color to specify different level of log (true or false)
+  # 是否输出带颜色的日志（ANSI标准）
+  color: true
+
+ui:
+  # Run mode: interact or command
+  # 运行模式：交互（interact）或命令（command）
+  # 交互模式：不带任何 flag 运行程序（或仅指定了配置文件目录）时，会输出操作菜单和中文提示
+  # 命令模式：不带任何 flag 运行程序（或仅指定了配置文件目录）时，按照既定设置执行登录操作，运行中不输出任何中文提示
+  # 任何运行模式均接受带 flag 运行程序
+  mode: interact

@@ -1,21 +1,61 @@
 # !!! DO NOT CHANGE THE FOLLOWING SETTINGS IF YOU DONT KNOW WHAT THEY ARE !!!
 
-http:
+request:
   header:
-    user_agent: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.45 Safari/537.36"
-    accept_language: "zh-CN;q=0.9,zh;q=0.8"
+    User-Agent: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.45 Safari/537.36"
+    Accept-Language: "zh-CN;q=0.9,zh;q=0.8"
   connect:
+    # Timeout seconds
     timeout: 5
 
-api:
-  network_check:
-    internet_check_hostname: "202.108.22.5"
-    intranet_check_hostname: "202.117.1.13"
-    dns_check_hostname: "baidu.com"
+dns:
+  connect:
+    # Timeout seconds
+    timeout: 3
+  testing:
+    # Not in used currently
+    retry_times: 10
+
+connectivity:
+  http:
+    internet: "http://202.108.22.5/"
+    intranet: "http://10.184.6.32/"
+  dns:
+    domain:
+      internet: "baidu.com"
+      intranet: "p.xjtu.edu.cn"
+    server:
+      internet:
+        # AliDNS (Alibaba Cloud)
+        - "223.5.5.5"
+        - "223.6.6.6"
+        # 114DNS
+        - "114.114.114.114"
+        # DNSPod (Tencent Cloud)
+        - "119.29.29.29"
+        # BaiduDNS (Baidu Cloud)
+        - "180.76.76.76"
+        # CNNIC DNS
+        - "1.2.4.8"
+        - "210.2.4.8"
+      intranet:
+        # iHarbor Intranet DNS
+        - "10.6.39.2"
+        - "10.6.39.3"
+        # XJTU CERNET DNS
+        - "202.117.0.20"
+        - "202.117.0.21"
+
+online:
+  bootstrap_url: "http://202.108.22.5/"
   portal_server:
     hostname: "10.184.6.32"
     fake_redirect_path: "/?userip=10.180.0.1&nasip=10.6.0.1&usermac=00:11:22:33:44:55"
-    login_path: "/portal/api/v2/online"
+    online_path: "/portal/api/v2/online"
+
+session:
+  portal_server:
+    hostname: "10.184.6.32"
     # session_path: "/portal/api/v2/session"
     session_list_path: "/portal/api/v2/session/list"
     logout_path: "/portal/api/v2/session/acctUniqueId"
@@ -23,92 +63,193 @@ api:
     hostname: "202.117.13.131"
     get_ip_path: "/conf.php?m=User&c=index&a=get_client_ip"
 
-errors:
-  login_errors:
-    - error_description: You are dialed up outside your allowed timespan
-      error_code: 21
-    - error_description: authentication rejected
-      error_code: 24
-    - error_description: You account has been suspended
-      error_code: 27
-    - error_description: You account has been froze, please contact service support
-      error_code: 33
-    - error_description: No billing plan subscription, please subscribe
-      error_code: 36
-      # Session concurrency overload
-    - error_description: already have
-      error_code: 39
-    - error_description: the account can only be used in student zone
-      error_code: 43
-    - error_description: the account can only be used in office zone
-      error_code: 46
-    - error_description: the account can only be used in visitor zone
-      error_code: 49
-    - error_description: invalid username or
-      error_code: 60
+logger:
+  output_format:
+    # Golang datetime layout
+    # Refer: https://programming.guide/go/format-parse-string-time-date-example.html
+    datetime: "2006-01-02 15:04:05"
+    # [Datetime] [Loglevel] log_information
+    log_record: "[%s] [%s] %s"
+  max_info_length: 1500
 
-# Output format
-log:
-  # Golang datetime layout
-  # Refer: https://programming.guide/go/format-parse-string-time-date-example.html
-  datetime: "2006-01-02 15:04:05"
-  # [Datetime] [Loglevel] log information
-  log_record: "[%s] [%s] %s"
+app:
+  portal:
+    session_list:
+      session_record: "[%d]. %s"
+      session_info: "MAC = %s, IP = %s, Last Login = %s %s"
+      current_session: "(Current Session)"
+    error_handle:
+      login_errors:
+        200:
+          error_code: 0
+          error_description: ""
+          hint_message: "登录成功"
+          log_level: WARNING
+          log_message: "Login success"
+        21:
+          error_code: 81
+          hint_message: "当前时段被限制登录，请联系运维人员并提供运行日志"
+          error_description: "You are dialed up outside your allowed timespan"
+          log_level: ERROR
+          log_message: "Error 21: Outside allowed timespan"
+        24:
+          error_code: 81
+          hint_message: "当前时段被限制登录，请联系运维人员并提供运行日志"
+          error_description: "authentication rejected"
+          log_level: ERROR
+          log_message: "Error 24: Authentication rejected"
+        27:
+          error_code: 81
+          hint_message: "账户欠费，请联系运维人员并提供运行日志"
+          error_description: "You account has been suspended"
+          log_level: ERROR
+          log_message: "Error 27: Account suspended"
+        33:
+          error_code: 81
+          hint_message: "账号被冻结，可能是您的账号产生了异常流量，请联系运维人员并提供运行日志"
+          error_description: "You account has been froze, please contact service support"
+          log_level: ERROR
+          log_message: "Error 33: Account frozen"
+        36:
+          error_code: 81
+          hint_message: "未订阅套餐，请联系运维人员并提供运行日志"
+          error_description: "No billing plan subscription, please subscribe"
+          log_level: ERROR
+          log_message: "Error 36: No subscription"
+        39:
+          error_code: 81
+          hint_message: "在线设备数已达到上限，请手动下线设备或开启自动下线配置"
+          error_description: "already have"
+          log_level: WARNING
+          log_message: "Error 39, 52, 56: Session concurrency overloaded"
+        43:
+          error_code: 81
+          hint_message: "当前账号只可使用学生区网络"
+          error_description: "the account can only be used in student zone"
+          log_level: ERROR
+          log_message: "Error 43: Only student network is available"
+        46:
+          error_code: 81
+          hint_message: "当前账号只可使用办公区网络"
+          error_description: "the account can only be used in office zone"
+          log_level: ERROR
+          log_message: "Error 46: Only office network is available"
+        49:
+          error_code: 81
+          hint_message: "当前账号只可使用访客网络"
+          error_description: "the account can only be used in visitor zone"
+          log_level: ERROR
+          log_message: "Error 49: Only guest network is available"
+        60:
+          error_code: 81
+          hint_message: "配置文件中设置的用户名和密码不正确"
+          error_description: "invalid username or"
+          log_level: ERROR
+          log_message: "Error 60: Invalid username or password"
+          # default
+        -1:
+          error_code: -1
+          hint_message: "其它错误，请联系运维人员并提供运行日志"
+          log_level: ERROR
+          log_message: "Error happens when logging in"
+      logout_errors:
+        200:
+          hint_message: "下线成功"
+          log_level: WARNING
+          log_message: "Logout success"
+          # default
+        -1:
+          hint_message: "下线失败"
+          log_level: ERROR
+          log_message: "Logout failed"
+      get_session_errors:
+        200:
+          hint_message: "获取会话列表成功"
+          log_level: INFO
+          log_message: "Get session list success"
+          # default
+        -1:
+          hint_message: "获取会话列表失败"
+          log_level: ERROR
+          log_message: "Get session list failed"
+  diagnosis:
+    error_handle:
+      internet_check_errors:
+        200:
+          hint_message: "您已成功连接至互联网"
+          log_level: INFO
+          log_message: "Internet available"
+          # default
+        302:
+          hint_message: "还未登陆"
+          log_level: WARNING
+          log_message: "Currently logged out"
+        -1:
+          hint_message: "网络故障"
+          log_level: ERROR
+          log_message: "Internet unavailable"
+      intranet_check_errors:
+        200:
+          hint_message: "认证服务器可用"
+          log_level: INFO
+          log_message: "Portal server is available"
+          # default
+        -1:
+          hint_message: "认证服务器不可用"
+          log_level: ERROR
+          log_message: "Portal server is unavailable"
+      resolve_check_errors:
+        200:
+          hint_message: "本地 DNS 服务器设置正常"
+          log_level: INFO
+          log_message: "DNS resolver is available"
+          # default
+        -1:
+          hint_message: "本地 DNS 服务器设置异常"
+          log_level: ERROR
+          log_message: "DNS resolver is unavailable"
 
-session:
-  session_record: "Session [%d]: %s"
-  session_info: "MAC = %s, IP = %s, Last Login = %s"
-
-error_handle:
-  login_errors:
-    200:
-      hint_message: "登录成功"
-      log_message: "Login success"
-    33:
-      hint_message: "账号被冻结，可能是您的账号产生了异常流量，请联系运维人员并提供运行日志"
-      log_message: "Account is frozen"
-    39:
-      hint_message: "在线设备数已达到上限，请手动下线设备或开启自动下线配置"
-      log_message: "Session concurrency overload"
-    49:
-      hint_message: "当前账号只可使用访客网络"
-      log_message: "Only guest network is available"
-    60:
-      hint_message: "配置文件中设置的用户名和密码不正确"
-      log_message: "Invalid username or password"
-      # default
-    -1:
-      hint_message: "其它错误，请联系运维人员并提供运行日志"
-      log_message: "Error happens when logging in"
-  logout_errors:
-    200:
-      hint_message: "下线成功"
-      log_message: "Logout success"
-      # default
-    -1:
-      hint_message: "下线失败"
-      log_message: "Logout failed"
-  get_session_errors:
-    200:
-      hint_message: "获取会话列表成功"
-      log_message: "Get session list success"
-      # default
-    -1:
-      hint_message: "获取会话列表失败"
-      log_message: "Get session list failed"
-  internet_check_errors:
-    200:
-      hint_message: "已经成功登录"
-      log_message: "Already logged in"
-      # default
-    -1:
-      hint_message: "还未登陆"
-      log_message: "Currently logged out"
-  intranet_check_errors:
-    200:
-      hint_message: "认证服务器可用"
-      log_message: "Portal server is available"
-      # default
-    -1:
-      hint_message: "认证服务器不可用"
-      log_message: "Portal server is unavailable"
+ui:
+  shell:
+    interact_hint:
+      basic_hint:
+        return_main: "[q]. 返回主目录"
+        key_select: "输入方括号中的字符以执行相应命令："
+        command_select: "输入方括号中的字符并按下回车(Enter)键以执行相应命令："
+        select_error: "未找到命令，请检查后重新输入字符"
+        pause: "按任意键返回..."
+        success: "操作成功"
+        failed: "操作未成功"
+      main_menu:
+        banner: |
+          Portal 认证辅助程序（交互模式）
+          适用于西安交通大学创新港校区 Portal 认证
+          ------------------------------------------
+          [0]. 版本信息
+          [1]. 快速设置...
+          [2]. 以当前配置登录
+          [3]. 查看当前会话（在线设备）
+          [4]. 选择会话登出...
+          [5]. 网络诊断
+          [6]. 临时切换日志级别为 DEBUG
+          [7]. 检查更新（暂不可用）
+          [q]. 退出程序
+      quick_setting:
+        banner: "按照提示输入相应信息并按下回车(Enter)键，设置成功后程序将终止"
+        username: "你的用户名："
+        password: "你的密码："
+        auto_logout: "是否开启自动下线(y/n)："
+        confirm: "请确认以上设置(y/n)："
+      session_list:
+        banner: "成功获取到 %d 条会话"
+      diagnosis:
+        banner: ""
+        intranet_dns_available: "以下校园网 DNS 服务器可正常使用："
+        internet_dns_available: "以下互联网公共 DNS 服务器可正常使用："
+        intranet_dns_unavailable: "无校园网 DNS 服务器可用"
+        internet_dns_unavailable: "无互联网公共 DNS 服务器可用"
+      update_check:
+        current_version: "当前版本："
+        latest_version: "最新版本："
+        update_available: "发现新版本，请前往以下链接下载："
+        update_unavailable: "当前已是最新版本"
