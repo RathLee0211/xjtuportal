@@ -48,7 +48,7 @@ func (requestHelper *RequestHelper) redirectPolicy(_ *http.Request, _ []*http.Re
 func (requestHelper *RequestHelper) SendRequest(
 	url string, method string, data io.Reader, header *http.Header, cookies []*http.Cookie,
 ) (
-	response *http.Response, body []byte, StatusCode int, error error,
+	response *http.Response, body []byte, statusCode int, error error,
 ) {
 
 	// Create request
@@ -99,6 +99,19 @@ func (requestHelper *RequestHelper) SendRequest(
 		err = errors.New("http/request: empty response")
 		return nil, nil, -1, err
 	}
+	// Response not empty
+	defer func() {
+		err = response.Body.Close()
+		if err != nil {
+			response = nil
+			body = nil
+			statusCode = -1
+			error = err
+		} else {
+			requestHelper.loggerHelper.AddLog(basic.DEBUG, "http/request: response body successfully closed")
+		}
+	}()
+
 	requestHelper.loggerHelper.AddLog(basic.DEBUG, fmt.Sprintf("http/request: response\n%+v", *response))
 
 	// Read respond body error
@@ -108,11 +121,6 @@ func (requestHelper *RequestHelper) SendRequest(
 	}
 
 	requestHelper.loggerHelper.AddLog(basic.DEBUG, fmt.Sprintf("http/request: response body\n%s", string(content)))
-
-	err = response.Body.Close()
-	if err != nil {
-		return nil, nil, -1, err
-	}
 
 	// Response code error
 	if response.StatusCode >= 400 {
