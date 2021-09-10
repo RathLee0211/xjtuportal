@@ -1,9 +1,9 @@
 package test
 
 import (
-	"auto-portal-auth/component/utils"
 	"reflect"
 	"testing"
+	"xjtuportal/component/utils"
 )
 
 func TestRemoveDuplicateStrings(t *testing.T) {

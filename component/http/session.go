@@ -1,14 +1,19 @@
 package http
 
 import (
-	"auto-portal-auth/component/basic"
-	"auto-portal-auth/component/device"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
 	"net/http"
+	"regexp"
 	"strconv"
+	"xjtuportal/component/basic"
+	"xjtuportal/component/device"
+)
+
+var (
+	ipv4Regex = regexp.MustCompile(`(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}`)
 )
 
 type SessionListPortal struct {
@@ -65,18 +70,12 @@ func InitSessionListHelper(
 		OnlineHelper:    onlineHelper,
 		loggerHelper:    loggerHelper,
 		sessionSettings: &configHelper.ProgramSettings.ProgramSessionSettings,
-		sessionListUrl: getUrl("http",
-			configHelper.ProgramSettings.ProgramSessionSettings.PortalServer.Hostname,
+		sessionListUrl: configHelper.ProgramSettings.ProgramSessionSettings.PortalServer.Hostname +
 			configHelper.ProgramSettings.ProgramSessionSettings.PortalServer.SessionListPath,
-		),
-		logoutUrl: getUrl("http",
-			configHelper.ProgramSettings.ProgramSessionSettings.PortalServer.Hostname,
+		logoutUrl: configHelper.ProgramSettings.ProgramSessionSettings.PortalServer.Hostname +
 			configHelper.ProgramSettings.ProgramSessionSettings.PortalServer.LogoutPath,
-		),
-		getIpUrl: getUrl("http",
-			configHelper.ProgramSettings.ProgramSessionSettings.SpeedCheckServer.Hostname,
+		getIpUrl: configHelper.ProgramSettings.ProgramSessionSettings.SpeedCheckServer.Hostname +
 			configHelper.ProgramSettings.ProgramSessionSettings.SpeedCheckServer.GetIpPath,
-		),
 		MacSessionMap:  make(map[string]*Session),
 		SessionMacList: make([]string, 0),
 	}
@@ -212,7 +211,7 @@ func (sessionListHelper *SessionListHelper) FindCurrentSessionBySpeedTestApp() (
 		return err
 	}
 
-	currentIp := net.ParseIP(string(body))
+	currentIp := net.ParseIP(ipv4Regex.FindAllString(string(body), -1)[0])
 	if currentIp == nil {
 		err = errors.New("http/session: cannot get a valid IP")
 		return err

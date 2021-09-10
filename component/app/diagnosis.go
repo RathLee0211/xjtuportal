@@ -1,11 +1,11 @@
 package app
 
 import (
-	"auto-portal-auth/component/basic"
-	"auto-portal-auth/component/http"
 	"errors"
 	"fmt"
 	"strings"
+	"xjtuportal/component/basic"
+	"xjtuportal/component/http"
 )
 
 type DiagnosisShellHelper struct {

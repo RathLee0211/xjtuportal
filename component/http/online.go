@@ -1,12 +1,12 @@
 package http
 
 import (
-	"auto-portal-auth/component/basic"
 	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
+	"xjtuportal/component/basic"
 )
 
 type AuthData struct {

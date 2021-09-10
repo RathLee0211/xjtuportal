@@ -1,11 +1,15 @@
 package test
 
 import (
-	"auto-portal-auth/component/basic"
-	"auto-portal-auth/component/device"
 	"fmt"
 	"strings"
 	"testing"
+	"xjtuportal/component/basic"
+	"xjtuportal/component/device"
+)
+
+var (
+	ifHelper = device.InterfaceHelper{}
 )
 
 func TestMacStandardize(t *testing.T) {
@@ -45,15 +49,19 @@ func TestMacStandardize(t *testing.T) {
 }
 
 func TestGetLocalInterfaceMac(t *testing.T) {
-	macList, err := device.GetLocalInterfaceMac()
+
+	macList, ipList, err := ifHelper.GetLocalInterfaceInfo()
 	if err != nil {
 		t.Error("Cannot get interface(s)")
 	}
-	basic.LoggerTemp.AddLog(basic.INFO,
-		fmt.Sprintf(
-			"MAC address(es) of local interface(s):\n%s",
-			strings.Join(macList, ",\n"),
-		))
+	fmt.Println(fmt.Sprintf(
+		"MAC address(es) of local interface(s):\n%s",
+		strings.Join(macList, ",\n"),
+	))
+	fmt.Println(fmt.Sprintf(
+		"IP address(es) of local interface(s):\n%s",
+		strings.Join(ipList, ",\n"),
+	))
 }
 
 func TestFindLogoutMac(t *testing.T) {
@@ -64,10 +72,10 @@ func TestFindLogoutMac(t *testing.T) {
 		t.Error("Initialization ConfigHelper & LoggerHelper failed")
 		return
 	}
-	macListHelper, err := device.InitMacListHelper(configHelper, loggerHelper)
+	interfaceHelper, err := device.InitInterfaceHelper(configHelper, loggerHelper)
 	if err != nil {
 		basic.LoggerTemp.AddLog(basic.ERROR, fmt.Sprintf("%v", err))
-		t.Error("Initialization MacListHelper failed")
+		t.Error("Initialization InterfaceHelper failed")
 		return
 	}
 	// Test 0: Find an unknown MAC address at bottom
@@ -77,7 +85,7 @@ func TestFindLogoutMac(t *testing.T) {
 		"00:00:5e:00:53:01",
 	}
 	logoutMac := "00:00:5e:00:53:01"
-	if macListHelper.FindLogoutMac(sessionMacList0) != logoutMac {
+	if interfaceHelper.FindLogoutMac(sessionMacList0) != logoutMac {
 		t.Error("Error when finding unknown MAC address")
 	}
 
@@ -88,7 +96,7 @@ func TestFindLogoutMac(t *testing.T) {
 		"aa:bb:cc:dd:ee:ff",
 	}
 	logoutMac = "00:00:5e:00:53:01"
-	if macListHelper.FindLogoutMac(sessionMacList1) != logoutMac {
+	if interfaceHelper.FindLogoutMac(sessionMacList1) != logoutMac {
 		t.Error("Error when finding unknown MAC address")
 	}
 
@@ -98,7 +106,7 @@ func TestFindLogoutMac(t *testing.T) {
 		"aa:bb:cc:dd:ee:ff",
 	}
 	logoutMac = "11:22:33:44:55:66"
-	if macListHelper.FindLogoutMac(sessionMacList2) != logoutMac {
+	if interfaceHelper.FindLogoutMac(sessionMacList2) != logoutMac {
 		t.Error("Error when finding a MAC address in known MAC list")
 	}
 
@@ -107,14 +115,14 @@ func TestFindLogoutMac(t *testing.T) {
 		"00:50:56:c0:00:08",
 	}
 	logoutMac = "00:50:56:c0:00:08"
-	if macListHelper.FindLogoutMac(sessionMacList3) != logoutMac {
+	if interfaceHelper.FindLogoutMac(sessionMacList3) != logoutMac {
 		t.Error("Error when finding a MAC address in known MAC list")
 	}
 
 	// Test 4: Empty session list
 	sessionMacList4 := make([]string, 0, 1)
 	logoutMac = ""
-	if macListHelper.FindLogoutMac(sessionMacList4) != logoutMac {
+	if interfaceHelper.FindLogoutMac(sessionMacList4) != logoutMac {
 		t.Error("Error handling empty session list")
 	}
 
@@ -125,7 +133,7 @@ func TestFindLogoutMac(t *testing.T) {
 		"aa:bb:cc:dd:ee:ff",
 	}
 	logoutMac = "aa:bb:cc:dd:ee:ff"
-	if macListHelper.FindLogoutMac(sessionMacList5) != logoutMac {
+	if interfaceHelper.FindLogoutMac(sessionMacList5) != logoutMac {
 		t.Error("Error handling session list with duplicated element")
 	}
 

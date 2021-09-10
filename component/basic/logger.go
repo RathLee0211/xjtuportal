@@ -1,7 +1,6 @@
 package basic
 
 import (
-	"auto-portal-auth/component/utils"
 	"errors"
 	"fmt"
 	"github.com/fatih/color"
@@ -11,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+	"xjtuportal/component/utils"
 )
 
 const (

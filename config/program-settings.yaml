@@ -55,13 +55,13 @@ online:
 
 session:
   portal_server:
-    hostname: "10.184.6.32"
+    hostname: "http://10.184.6.32"
     # session_path: "/portal/api/v2/session"
     session_list_path: "/portal/api/v2/session/list"
     logout_path: "/portal/api/v2/session/acctUniqueId"
   speed_check_server:
-    hostname: "202.117.13.131"
-    get_ip_path: "/conf.php?m=User&c=index&a=get_client_ip"
+    hostname: "https://speed.xjtu.edu.cn"
+    get_ip_path: "/backend/getIP"
 
 logger:
   output_format:

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"auto-portal-auth/exec"
+	"xjtuportal/exec"
 )
 
 func main() {

@@ -1,11 +1,6 @@
 package exec
 
 import (
-	"auto-portal-auth/component/app"
-	"auto-portal-auth/component/basic"
-	"auto-portal-auth/component/device"
-	"auto-portal-auth/component/http"
-	"auto-portal-auth/component/utils"
 	"bufio"
 	"flag"
 	"fmt"
@@ -17,6 +12,11 @@ import (
 	"regexp"
 	"runtime"
 	"strconv"
+	"xjtuportal/component/app"
+	"xjtuportal/component/basic"
+	"xjtuportal/component/device"
+	"xjtuportal/component/http"
+	"xjtuportal/component/utils"
 )
 
 var (
@@ -121,14 +121,14 @@ func InitShellUi() *ShellUi {
 	}
 	loggerHelper.AddLog(basic.DEBUG, "SessionListHelper successfully initialized")
 
-	macListHelper, err := device.InitMacListHelper(configHelper, loggerHelper)
+	interfaceHelper, err := device.InitInterfaceHelper(configHelper, loggerHelper)
 	if err != nil {
 		basic.LoggerTemp.AddLog(basic.FATAL, fmt.Sprintf("%v", err))
 		return nil
 	}
-	loggerHelper.AddLog(basic.DEBUG, "MacListHelper successfully initialized")
+	loggerHelper.AddLog(basic.DEBUG, "InterfaceHelper successfully initialized")
 
-	portalHelper, err := app.InitPortalShellHelper(configHelper, loggerHelper, connectivityChecker, sessionListHelper, macListHelper)
+	portalHelper, err := app.InitPortalShellHelper(configHelper, loggerHelper, connectivityChecker, sessionListHelper, interfaceHelper)
 	if err != nil {
 		basic.LoggerTemp.AddLog(basic.FATAL, fmt.Sprintf("%v", err))
 		return nil

@@ -1,8 +1,6 @@
 package http
 
 import (
-	"auto-portal-auth/component/basic"
-	"auto-portal-auth/component/utils"
 	"context"
 	"errors"
 	"fmt"
@@ -13,6 +11,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"xjtuportal/component/basic"
+	"xjtuportal/component/utils"
 )
 
 type DnsHelper struct {

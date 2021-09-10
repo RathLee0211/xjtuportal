@@ -1,19 +1,19 @@
 package app
 
 import (
-	"auto-portal-auth/component/basic"
-	"auto-portal-auth/component/device"
-	"auto-portal-auth/component/http"
 	"errors"
 	"fmt"
 	"strings"
+	"xjtuportal/component/basic"
+	"xjtuportal/component/device"
+	"xjtuportal/component/http"
 )
 
 type PortalShellHelper struct {
 	loggerHelper        *basic.LoggerHelper
 	connectivityChecker *http.ConnectivityChecker
 	sessionListHelper   *http.SessionListHelper
-	macListHelper       *device.MacListHelper
+	interfaceHelper     *device.InterfaceHelper
 
 	userPortalSettings       *basic.UserPortalSettings
 	userUiSettings           *basic.UserUISettings
@@ -28,7 +28,7 @@ func InitPortalShellHelper(
 	loggerHelper *basic.LoggerHelper,
 	connectivityChecker *http.ConnectivityChecker,
 	sessionListHelper *http.SessionListHelper,
-	macListHelper *device.MacListHelper,
+	interfaceHelper *device.InterfaceHelper,
 ) (*PortalShellHelper, error) {
 
 	if configHelper == nil {
@@ -51,7 +51,7 @@ func InitPortalShellHelper(
 		return nil, err
 	}
 
-	if macListHelper == nil {
+	if interfaceHelper == nil {
 		err := errors.New("app/portal: macListHelper is invalid")
 		return nil, err
 	}
@@ -60,7 +60,7 @@ func InitPortalShellHelper(
 		loggerHelper:        loggerHelper,
 		connectivityChecker: connectivityChecker,
 		sessionListHelper:   sessionListHelper,
-		macListHelper:       macListHelper,
+		interfaceHelper:     interfaceHelper,
 
 		userPortalSettings:       &configHelper.UserSettings.UserAppSettings.UserPortalSettings,
 		userUiSettings:           &configHelper.UserSettings.UserUISettings,
@@ -169,7 +169,7 @@ func (portal *PortalShellHelper) DoLogin() {
 			portal.loggerHelper.AddLog(basic.ERROR, fmt.Sprintf("%v", err))
 			return
 		}
-		logoutMacAddr := portal.macListHelper.FindLogoutMac(portal.sessionListHelper.SessionMacList)
+		logoutMacAddr := portal.interfaceHelper.FindLogoutMac(portal.sessionListHelper.SessionMacList)
 		err = portal.logout(logoutMacAddr)
 		if err != nil {
 			portal.loggerHelper.AddLog(basic.ERROR, fmt.Sprintf("%v", err))
@@ -203,7 +203,7 @@ func (portal *PortalShellHelper) DoListSession() (err error) {
 	err = portal.sessionListHelper.FindCurrentSessionBySpeedTestApp()
 	if err != nil {
 		portal.loggerHelper.AddLog(basic.WARNING, fmt.Sprintf("%v", err))
-		err = portal.sessionListHelper.FindCurrentSessionByLocalMacList(portal.macListHelper.LocalMacList)
+		err = portal.sessionListHelper.FindCurrentSessionByLocalMacList(portal.interfaceHelper.LocalMacList)
 		if err != nil {
 			portal.loggerHelper.AddLog(basic.WARNING, fmt.Sprintf("%v", err))
 		}

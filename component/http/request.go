@@ -1,7 +1,6 @@
 package http
 
 import (
-	"auto-portal-auth/component/basic"
 	"errors"
 	"fmt"
 	"io"
@@ -9,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"time"
+	"xjtuportal/component/basic"
 )
 
 func getUrl(protocol string, hostname string, path string) (url string) {

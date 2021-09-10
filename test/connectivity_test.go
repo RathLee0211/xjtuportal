@@ -1,11 +1,11 @@
 package test
 
 import (
-	"auto-portal-auth/component/app"
-	"auto-portal-auth/component/basic"
-	"auto-portal-auth/component/http"
 	"fmt"
 	"testing"
+	"xjtuportal/component/app"
+	"xjtuportal/component/basic"
+	"xjtuportal/component/http"
 )
 
 func TestConnectivity(t *testing.T) {

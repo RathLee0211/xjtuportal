@@ -1,7 +1,7 @@
 package test
 
 import (
-	"auto-portal-auth/component/basic"
+	"xjtuportal/component/basic"
 )
 
 func readConfig() (*basic.ConfigHelper, *basic.LoggerHelper, error) {

@@ -1,4 +1,4 @@
-module auto-portal-auth
+module xjtuportal
 
 go 1.15
 
