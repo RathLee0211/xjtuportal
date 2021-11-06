@@ -99,6 +99,12 @@ func (requestHelper *RequestHelper) SendRequest(
 		err = errors.New("http/request: empty response")
 		return nil, nil, -1, err
 	}
+
+	if response.Body == nil {
+		err = errors.New("http/request: empty response body")
+		return nil, nil, response.StatusCode, err
+	}
+
 	// Response not empty
 	defer func() {
 		err = response.Body.Close()
@@ -117,7 +123,7 @@ func (requestHelper *RequestHelper) SendRequest(
 	// Read respond body error
 	content, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		return nil, nil, -1, err
+		return nil, nil, response.StatusCode, err
 	}
 
 	requestHelper.loggerHelper.AddLog(basic.DEBUG, fmt.Sprintf("http/request: response body\n%s", string(content)))
