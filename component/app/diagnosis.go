@@ -63,6 +63,11 @@ func (diagnosis *DiagnosisShellHelper) errorHandle(
 }
 
 func (diagnosis *DiagnosisShellHelper) DoDiagnosis() {
+
+	if diagnosis.printHint {
+		fmt.Println(diagnosis.programShellSettings.InteractHint.Diagnosis.Banner)
+	}
+
 	diagnosis.loggerHelper.AddLog(basic.INFO, "app/diagnosis: Start checking network connectivity")
 
 	diagnosis.loggerHelper.AddLog(basic.INFO, "app/diagnosis: Start HTTP check")

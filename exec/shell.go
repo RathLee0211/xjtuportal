@@ -2,7 +2,6 @@ package exec
 
 import (
 	"bufio"
-	"flag"
 	"fmt"
 	"github.com/eiannone/keyboard"
 	"gopkg.in/yaml.v3"
@@ -16,7 +15,6 @@ import (
 	"xjtuportal/component/basic"
 	"xjtuportal/component/device"
 	"xjtuportal/component/http"
-	"xjtuportal/component/utils"
 )
 
 var (
@@ -51,26 +49,38 @@ type ShellUi struct {
 	diagnosisFlag   bool
 }
 
-func InitShellUi() *ShellUi {
+func InitShellUi(
+	versionFlag bool,
+	configFlag string,
+	loginFlag bool,
+	logoutFlag int,
+	showSessionFlag bool,
+	diagnosisFlag bool,
+	adapterFlag bool,
+) *ShellUi {
 
-	currentRunningDir := utils.GetCurrentRunningDir()
-
-	versionFlag := flag.Bool("v", false, "Show current version")
-	configFlag := flag.String("c", fmt.Sprintf("%s/%s", currentRunningDir, "config"), "The path of config folder")
-	loginFlag := flag.Bool("i", false, "Login using auth data given in config file")
-	logoutFlag := flag.Int("o", -1, "Logout with given index (shown by -s)")
-	showSessionFlag := flag.Bool("s", false, "List current sessions")
-	diagnosisFlag := flag.Bool("d", false, "Check http and DNS connectivity")
-	flag.Parse()
-
-	if *versionFlag {
+	if versionFlag {
 		fmt.Println(app.ProgramInfo())
 		return nil
 	}
 
+	if adapterFlag {
+		ifList, _, _, err := device.GetLocalInterfaceInfo()
+		if err != nil {
+			fmt.Println(err)
+		} else if len(ifList) == 0 {
+			fmt.Println("Cannot get any interfaces")
+		} else {
+			for _, i := range ifList {
+				fmt.Println(i)
+			}
+		}
+		return nil
+	}
+
 	configHelper, err := basic.InitConfigHelper(
-		fmt.Sprintf("%s/%s", *configFlag, basic.UserConfigFile),
-		fmt.Sprintf("%s/%s", *configFlag, basic.ProgramConfigFile),
+		fmt.Sprintf("%s/%s", configFlag, basic.UserConfigFile),
+		fmt.Sprintf("%s/%s", configFlag, basic.ProgramConfigFile),
 	)
 	if err != nil {
 		basic.LoggerTemp.AddLog(basic.FATAL, fmt.Sprintf("%v", err))
@@ -140,11 +150,11 @@ func InitShellUi() *ShellUi {
 		diagnosis:       diagnosisHelper,
 		configHelper:    configHelper,
 		loggerHelper:    loggerHelper,
-		configDir:       *configFlag,
-		loginFlag:       *loginFlag,
-		logoutFlag:      *logoutFlag,
-		showSessionFlag: *showSessionFlag,
-		diagnosisFlag:   *diagnosisFlag,
+		configDir:       configFlag,
+		loginFlag:       loginFlag,
+		logoutFlag:      logoutFlag,
+		showSessionFlag: showSessionFlag,
+		diagnosisFlag:   diagnosisFlag,
 	}
 	basic.LoggerTemp.AddLog(basic.INFO, "All modules successfully initialized")
 	return shellUi
@@ -240,7 +250,10 @@ func (shellUi *ShellUi) logoutInteract() {
 	shellUi.portal.DoLogout(sessionIndex)
 }
 
-func (shellUi *ShellUi) interactExec() {
+func (shellUi *ShellUi) interactExec() (exit bool) {
+
+	exit = true
+
 	interactHint := shellUi.configHelper.ProgramSettings.ProgramUiSettings.ProgramShellSettings.InteractHint
 	for {
 		// Clear terminal
@@ -267,6 +280,7 @@ func (shellUi *ShellUi) interactExec() {
 				shellUi.clearScreen()
 				ret := shellUi.quickSettingInteract()
 				pause(interactHint.BasicHint.Pause)
+				exit = false
 				if ret {
 					return
 				}
@@ -302,6 +316,23 @@ func (shellUi *ShellUi) interactExec() {
 				fmt.Println(interactHint.BasicHint.Success)
 				pause(interactHint.BasicHint.Pause)
 			}
+		case '7':
+			{
+				shellUi.clearScreen()
+				ifList, _, _, err := device.GetLocalInterfaceInfo()
+				if err != nil {
+					fmt.Println(interactHint.BasicHint.Failed)
+					shellUi.loggerHelper.AddLog(basic.ERROR, err.Error())
+				} else if len(ifList) == 0 {
+					fmt.Println(interactHint.BasicHint.Failed)
+					shellUi.loggerHelper.AddLog(basic.ERROR, "Cannot get any interfaces")
+				} else {
+					for _, i := range ifList {
+						fmt.Println(i)
+					}
+				}
+				pause(interactHint.BasicHint.Pause)
+			}
 		case 'q':
 			{
 				return
@@ -316,19 +347,21 @@ func (shellUi *ShellUi) interactExec() {
 	}
 }
 
-func (shellUi *ShellUi) Exec() {
+func (shellUi *ShellUi) Exec() (exit bool) {
+
+	exit = true
+
 	if !shellUi.loginFlag &&
 		shellUi.logoutFlag == -1 &&
 		!shellUi.showSessionFlag &&
 		!shellUi.diagnosisFlag {
 		if shellUi.configHelper.UserSettings.UserUISettings.Mode == basic.InteractMode {
-			shellUi.interactExec()
+			exit = shellUi.interactExec()
 			return
 		} else {
 			shellUi.portal.DoLogin()
 			return
 		}
-
 	}
 
 	if shellUi.loginFlag {
@@ -351,5 +384,7 @@ func (shellUi *ShellUi) Exec() {
 		shellUi.diagnosis.DoDiagnosis()
 		return
 	}
+
+	return
 
 }

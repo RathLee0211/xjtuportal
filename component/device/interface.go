@@ -4,9 +4,20 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"regexp"
 	"strings"
 	"xjtuportal/component/basic"
 	"xjtuportal/component/utils"
+)
+
+const (
+	PrefixIpVersion = 0x19140000 + iota
+	Ipv4
+	Ipv6
+)
+
+var (
+	NotValidIpChar = regexp.MustCompile(`[^a-fA-F0-9.:/]`)
 )
 
 func MacStandardize(mac string) (string, error) {
@@ -15,6 +26,120 @@ func MacStandardize(mac string) (string, error) {
 	} else {
 		return net.HardwareAddr.String(macAddr), err
 	}
+}
+
+func IpVersionCheck(ip interface{}) (versionNum int) {
+	versionNum = 0
+	switch ipType := ip.(type) {
+	case net.IP:
+		if ipType.To4() != nil {
+			versionNum = Ipv4
+		} else {
+			versionNum = Ipv6
+		}
+	case string:
+		for i := 0; i < len(ipType); i++ {
+			switch ipType[i] {
+			case '.':
+				versionNum = Ipv4
+			case ':':
+				versionNum = Ipv6
+			}
+		}
+	}
+	return versionNum
+}
+
+func ParseCidr(cidrStr string) (net.IP, *net.IPNet) {
+
+	cidrStr = NotValidIpChar.ReplaceAllString(cidrStr, "")
+	isMaskExist := false
+	for i := 0; i < len(cidrStr); i++ {
+		if cidrStr[i] == '/' {
+			isMaskExist = true
+			break
+		}
+	}
+
+	versionNum := IpVersionCheck(cidrStr)
+	if !isMaskExist {
+		switch versionNum {
+		case Ipv4:
+			cidrStr = utils.Sprint(cidrStr, "/32")
+		case Ipv6:
+			cidrStr = utils.Sprint(cidrStr, "/128")
+		default:
+			return nil, nil
+		}
+	}
+
+	ip, ipNet, err := net.ParseCIDR(cidrStr)
+	if err != nil {
+		return nil, nil
+	}
+
+	return ip, ipNet
+}
+
+func GetLocalInterfaceInfo() (ifList []*InterfaceInfo, macList, ipList []string, err error) {
+	interfaces, err := net.Interfaces()
+
+	ifList = make([]*InterfaceInfo, 0, len(interfaces))
+	macList = make([]string, 0, len(interfaces))
+	ipList = make([]string, 0, len(interfaces))
+
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	_, localCidr, _ := net.ParseCIDR("127.0.0.0/8")
+	_, internalCidr, _ := net.ParseCIDR("169.254.0.0/16")
+
+	for _, i := range interfaces {
+
+		var macStr string
+		if mac := i.HardwareAddr; mac != nil {
+			macStr = net.HardwareAddr.String(mac)
+		}
+
+		curIp := make([]string, 0)
+		filteredIp := make([]string, 0)
+
+		if addrList, err := i.Addrs(); err == nil {
+			for _, ipAddr := range addrList {
+				ip, _ := ParseCidr(ipAddr.String())
+				curIp = append(curIp, ip.String())
+				if IpVersionCheck(ip) == Ipv6 || localCidr.Contains(ip) || internalCidr.Contains(ip) {
+					continue
+				}
+				filteredIp = append(filteredIp, ip.String())
+			}
+		}
+
+		ipList = append(ipList, filteredIp...)
+		if len(filteredIp) > 0 {
+			macList = append(macList, macStr)
+		}
+
+		ifList = append(ifList, &InterfaceInfo{
+			name:   i.Name,
+			mac:    macStr,
+			ipList: curIp,
+		})
+
+	}
+
+	return ifList, macList, ipList, nil
+}
+
+type InterfaceInfo struct {
+	name   string
+	mac    string
+	ipList []string
+}
+
+func (i *InterfaceInfo) String() string {
+	return utils.Sprint(i.name, "\n======================\n", "Mac: ", i.mac, "\n", "Address(es): ", i.ipList, "\n======================\n")
 }
 
 type InterfaceHelper struct {
@@ -41,33 +166,6 @@ func (ifHelper *InterfaceHelper) MacListStandardize(macList []string) (standardL
 
 	}
 	return standardMacList, errorMacList
-}
-
-func (ifHelper *InterfaceHelper) GetLocalInterfaceInfo() (macList []string, ipList []string, err error) {
-	interfaces, err := net.Interfaces()
-	macList = make([]string, 0, len(interfaces))
-	ipList = make([]string, 0, len(interfaces))
-	if err != nil {
-		return macList, ipList, err
-	}
-	for _, i := range interfaces {
-		mac := i.HardwareAddr
-		if mac != nil {
-			macList = append(macList, net.HardwareAddr.String(mac))
-		}
-		addrList, err := i.Addrs()
-		if err != nil {
-			ifHelper.loggerHelper.AddLog(basic.WARNING,
-				fmt.Sprintf(
-					"device/interface: Cannot get IP address from interface [%s]",
-					i.Name,
-				))
-		} else {
-			fmt.Println(addrList)
-		}
-	}
-
-	return macList, ipList, nil
 }
 
 func InitInterfaceHelper(configHelper *basic.ConfigHelper, loggerHelper *basic.LoggerHelper) (*InterfaceHelper, error) {
@@ -99,7 +197,7 @@ func InitInterfaceHelper(configHelper *basic.ConfigHelper, loggerHelper *basic.L
 	}
 
 	// Get MAC addresses & IP addresses from local interfaces
-	localMacList, localIpList, err := interfaceHelper.GetLocalInterfaceInfo()
+	_, localMacList, localIpList, err := GetLocalInterfaceInfo()
 	interfaceHelper.LocalMacList = localMacList
 	interfaceHelper.LocalIpList = localIpList
 	if err != nil {

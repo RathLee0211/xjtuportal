@@ -77,7 +77,7 @@ app:
     session_list:
       session_record: "[%d]. %s"
       session_info: "MAC = %s, IP = %s, Last Login = %s %s"
-      current_session: "(Current Session)"
+      current_session: "(当前设备)"
     error_handle:
       login_errors:
         200:
@@ -226,24 +226,25 @@ ui:
           适用于西安交通大学创新港校区 Portal 认证
           ------------------------------------------
           [0]. 版本信息
-          [1]. 快速设置...
-          [2]. 以当前配置登录
+          [1]. 快速设置...                <-- 第一次用？按 1 快速设置！
+          [2]. 以当前配置登录             <-- 按 2 一键登录！
           [3]. 查看当前会话（在线设备）
           [4]. 选择会话登出...
-          [5]. 网络诊断
-          [6]. 临时切换日志级别为 DEBUG
-          [7]. 检查更新（暂不可用）
+          [5]. 网络诊断                   <-- 按 5 可奉告（不是）检查网络
+          [6]. 临时切换日志级别为 DEBUG   <-- 群里报故障之前记得先选 6 ！
+          [7]. 查看当前网卡信息
+          [u]. 检查更新                   <-- 暂不可用，请按 0 查看 GitHub 地址
           [q]. 退出程序
       quick_setting:
-        banner: "按照提示输入相应信息并按下回车(Enter)键，设置成功后程序将终止"
+        banner: "按照提示输入相应信息并按下回车(Enter)键， 设置成功后请在主菜单选择“以当前配置登录”"
         username: "你的用户名："
         password: "你的密码："
-        auto_logout: "是否开启自动下线(y/n)："
+        auto_logout: "是否开启自动下线(y/n)：  <-- 若为 y，当登录时出现设备超限的情况时，程序将先按照策略自动选择一个设备下线"
         confirm: "请确认以上设置(y/n)："
       session_list:
         banner: "成功获取到 %d 条会话"
       diagnosis:
-        banner: ""
+        banner: "请耐心等待检查结束，检查结束后会提示“按任意键返回”"
         intranet_dns_available: "以下校园网 DNS 服务器可正常使用："
         internet_dns_available: "以下互联网公共 DNS 服务器可正常使用："
         intranet_dns_unavailable: "无校园网 DNS 服务器可用"

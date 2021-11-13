@@ -50,9 +50,12 @@ func TestMacStandardize(t *testing.T) {
 
 func TestGetLocalInterfaceMac(t *testing.T) {
 
-	macList, ipList, err := ifHelper.GetLocalInterfaceInfo()
+	ifList, macList, ipList, err := device.GetLocalInterfaceInfo()
 	if err != nil {
 		t.Error("Cannot get interface(s)")
+	}
+	for _, i := range ifList {
+		fmt.Println(i)
 	}
 	fmt.Println(fmt.Sprintf(
 		"MAC address(es) of local interface(s):\n%s",

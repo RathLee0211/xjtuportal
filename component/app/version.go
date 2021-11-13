@@ -5,7 +5,7 @@ import (
 )
 
 var (
-	version     = "0.0.0"
+	version     = "0.1.0"
 	release     = "alpha"
 	license     = "MIT"
 	description = "XJTUPortal v%s %s, a web portal authentication manager for XJTU iHarbor campus network."
