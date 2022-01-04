@@ -19,6 +19,7 @@ dns:
 connectivity:
   http:
     internet: "http://202.108.22.5/"
+    # internet: "http://connectivitycheck.gstatic.com/generate_204"
     intranet: "http://10.184.6.32/"
   dns:
     domain:
@@ -77,7 +78,7 @@ app:
     session_list:
       session_record: "[%d]. %s"
       session_info: "MAC = %s, IP = %s, Last Login = %s %s"
-      current_session: "(当前设备)"
+      current_session: "(Current Session)"
     error_handle:
       login_errors:
         200:
@@ -180,6 +181,10 @@ app:
           log_level: INFO
           log_message: "Internet available"
           # default
+        204:
+          hint_message: "您已成功连接至互联网"
+          log_level: INFO
+          log_message: "Internet available"
         302:
           hint_message: "还未登陆"
           log_level: WARNING
