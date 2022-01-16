@@ -117,7 +117,10 @@ func InitShellUi(
 	}
 	loggerHelper.AddLog(basic.DEBUG, "ConnectivityChecker successfully initialized")
 
-	diagnosisHelper, err := app.InitDiagnosisHelper(configHelper, loggerHelper, connectivityChecker)
+	proxyChecker := http.InitProxyHelper(loggerHelper, configHelper)
+	loggerHelper.AddLog(basic.DEBUG, "ProxyChecker successfully initialized")
+
+	diagnosisHelper, err := app.InitDiagnosisHelper(configHelper, loggerHelper, connectivityChecker, proxyChecker)
 	if err != nil {
 		basic.LoggerTemp.AddLog(basic.FATAL, fmt.Sprintf("%v", err))
 		return nil
@@ -195,9 +198,9 @@ func (shellUi *ShellUi) quickSettingInteract() bool {
 
 	// Confirmation
 	fmt.Println("==========================")
-	fmt.Printf("%s%s\n", interactHint.QuickSetting.Username, username)
-	fmt.Printf("%s%s\n", interactHint.QuickSetting.Password, password)
-	fmt.Printf("%s%s\n", interactHint.QuickSetting.AutoLogout, autoLogout)
+	fmt.Printf("%s\n%s\n", interactHint.QuickSetting.Username, username)
+	fmt.Printf("%s\n%s\n", interactHint.QuickSetting.Password, password)
+	fmt.Printf("%s\n%s\n", interactHint.QuickSetting.AutoLogout, autoLogout)
 
 	fmt.Println(interactHint.QuickSetting.Confirm)
 	confirm, _ := shellUi.getInput()
@@ -280,9 +283,9 @@ func (shellUi *ShellUi) interactExec() (exit bool) {
 				shellUi.clearScreen()
 				ret := shellUi.quickSettingInteract()
 				pause(interactHint.BasicHint.Pause)
-				exit = false
 				if ret {
-					return
+					exit = false
+					return exit
 				}
 			}
 		case '2':
@@ -325,7 +328,7 @@ func (shellUi *ShellUi) interactExec() (exit bool) {
 					shellUi.loggerHelper.AddLog(basic.ERROR, err.Error())
 				} else if len(ifList) == 0 {
 					fmt.Println(interactHint.BasicHint.Failed)
-					shellUi.loggerHelper.AddLog(basic.ERROR, "Cannot get any interfaces")
+					shellUi.loggerHelper.AddLog(basic.ERROR, "basic/shell: Cannot get any interface with valid IP")
 				} else {
 					for _, i := range ifList {
 						fmt.Println(i)
@@ -357,7 +360,7 @@ func (shellUi *ShellUi) Exec() (exit bool) {
 		!shellUi.diagnosisFlag {
 		if shellUi.configHelper.UserSettings.UserUISettings.Mode == basic.InteractMode {
 			exit = shellUi.interactExec()
-			return
+			return exit
 		} else {
 			shellUi.portal.DoLogin()
 			return

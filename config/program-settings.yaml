@@ -46,6 +46,17 @@ connectivity:
         # XJTU CERNET DNS
         - "202.117.0.20"
         - "202.117.0.21"
+  proxy:
+    test_url: "http://connectivitycheck.gstatic.com/generate_204"
+    timeout: 2 # Seconds
+    ports:
+      "1080:1083": [ "shadowsocks(R)", "Socks(4/4a/5) proxy default" ]
+      "2800:2803": [ "Netch" ]
+      "3128": [ "http proxy default" ]
+      "7890:7893": [ "Clash (for Windows)" ]
+      "8000": [ "Privoxy" ]
+      "8118": [ "Privoxy" ]
+      "10800:10810": [ "v2rayN" ]
 
 online:
   bootstrap_url: "http://202.108.22.5/"
@@ -250,6 +261,9 @@ ui:
         banner: "成功获取到 %d 条会话"
       diagnosis:
         banner: "请耐心等待检查结束，检查结束后会提示“按任意键返回”"
+        no_available_ip: "未配置可用 IPv4 地址，请检查网络连接"
+        proxy_found: "检测到以下代理（o 为可用，x 为不可用，括号中为可能对应的代理软件）："
+        no_proxy_available: "检测到的代理均无法正常使用，您的网络访问可能受到限制"
         intranet_dns_available: "以下校园网 DNS 服务器可正常使用："
         internet_dns_available: "以下互联网公共 DNS 服务器可正常使用："
         intranet_dns_unavailable: "无校园网 DNS 服务器可用"

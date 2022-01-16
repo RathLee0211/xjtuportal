@@ -35,7 +35,9 @@ func TestConnectivity(t *testing.T) {
 		return
 	}
 
-	diagnosisHelper, err := app.InitDiagnosisHelper(configHelper, loggerHelper, connectivityChecker)
+	proxyChecker := http.InitProxyHelper(loggerHelper, configHelper)
+
+	diagnosisHelper, err := app.InitDiagnosisHelper(configHelper, loggerHelper, connectivityChecker, proxyChecker)
 	if err != nil {
 		t.Error("Initialization DiagnosisShellHelper failed")
 		return

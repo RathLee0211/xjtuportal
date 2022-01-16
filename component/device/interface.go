@@ -117,15 +117,17 @@ func GetLocalInterfaceInfo() (ifList []*InterfaceInfo, macList, ipList []string,
 		}
 
 		ipList = append(ipList, filteredIp...)
-		if len(filteredIp) > 0 {
-			macList = append(macList, macStr)
+		macList = append(macList, macStr)
+		ifInfo := &InterfaceInfo{
+			name: i.Name,
+			mac:  macStr,
 		}
 
-		ifList = append(ifList, &InterfaceInfo{
-			name:   i.Name,
-			mac:    macStr,
-			ipList: curIp,
-		})
+		if len(filteredIp) > 0 {
+			ifInfo.ipList = curIp
+		}
+
+		ifList = append(ifList, ifInfo)
 
 	}
 

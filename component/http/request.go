@@ -29,7 +29,7 @@ func InitRequestHelper(configHelper *basic.ConfigHelper, loggerHelper *basic.Log
 	}
 
 	if loggerHelper == nil {
-		err := errors.New("http/request: logger is invalid")
+		err = errors.New("http/request: logger is invalid")
 		return nil, err
 	}
 

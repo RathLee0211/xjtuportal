@@ -113,6 +113,11 @@ type ProgramConnectivitySettings struct {
 			Intranet []string `yaml:"intranet,flow"`
 		} `yaml:"server"`
 	} `yaml:"dns"`
+	Proxy struct {
+		TestUrl string              `yaml:"test_url"`
+		Timeout int                 `yaml:"timeout"`
+		Ports   map[string][]string `yaml:"ports"`
+	} `yaml:"proxy"`
 }
 
 type ProgramOnlineSettings struct {
@@ -202,6 +207,9 @@ type ProgramShellSettings struct {
 		} `yaml:"session_list"`
 		Diagnosis struct {
 			Banner           string `yaml:"banner"`
+			NoIp             string `yaml:"no_available_ip"`
+			ProxyFound       string `yaml:"proxy_found"`
+			NoProxyAvailable string `yaml:"no_proxy_available"`
 			IntraAvailable   string `yaml:"intranet_dns_available"`
 			InterAvailable   string `yaml:"internet_dns_available"`
 			IntraUnavailable string `yaml:"intranet_dns_unavailable"`

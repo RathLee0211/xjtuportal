@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"strings"
 	"xjtuportal/component/basic"
+	"xjtuportal/component/device"
 	"xjtuportal/component/http"
 )
 
 type DiagnosisShellHelper struct {
 	loggerHelper             *basic.LoggerHelper
 	connectivityChecker      *http.ConnectivityChecker
+	proxyChecker             *http.ProxyHelper
 	userUiSettings           *basic.UserUISettings
 	programDiagnosisSettings *basic.ProgramDiagnosisSettings
 	programShellSettings     *basic.ProgramShellSettings
@@ -21,6 +23,7 @@ func InitDiagnosisHelper(
 	configHelper *basic.ConfigHelper,
 	loggerHelper *basic.LoggerHelper,
 	connectivityChecker *http.ConnectivityChecker,
+	proxyChecker *http.ProxyHelper,
 ) (*DiagnosisShellHelper, error) {
 
 	if configHelper == nil {
@@ -38,9 +41,15 @@ func InitDiagnosisHelper(
 		return nil, err
 	}
 
+	if proxyChecker == nil {
+		err := errors.New("app/diagnosis: proxyChecker is invalid")
+		return nil, err
+	}
+
 	initDiagnosisHelper := &DiagnosisShellHelper{
 		loggerHelper:             loggerHelper,
 		connectivityChecker:      connectivityChecker,
+		proxyChecker:             proxyChecker,
 		userUiSettings:           &configHelper.UserSettings.UserUISettings,
 		programDiagnosisSettings: &configHelper.ProgramSettings.ProgramAppSettings.ProgramDiagnosisSettings,
 		programShellSettings:     &configHelper.ProgramSettings.ProgramUiSettings.ProgramShellSettings,
@@ -66,6 +75,23 @@ func (diagnosis *DiagnosisShellHelper) DoDiagnosis() {
 
 	if diagnosis.printHint {
 		fmt.Println(diagnosis.programShellSettings.InteractHint.Diagnosis.Banner)
+	}
+
+	_, _, ipList, err := device.GetLocalInterfaceInfo()
+	if err != nil {
+		diagnosis.loggerHelper.AddLog(basic.INFO, fmt.Sprint("app/diagnosis: Error getting IP from interfaces: ", err))
+		if diagnosis.printHint {
+			fmt.Println(diagnosis.programShellSettings.InteractHint.BasicHint.Failed)
+		}
+		return
+	}
+	diagnosis.loggerHelper.AddLog(basic.INFO, fmt.Sprint("app/diagnosis: All vaild IPv4 address(es):\n", strings.Join(ipList, "\n")))
+	if len(ipList) == 0 {
+		diagnosis.loggerHelper.AddLog(basic.ERROR, fmt.Sprint("app/diagnosis: Cannot get any interface with valid IP"))
+		if diagnosis.printHint {
+			fmt.Println(diagnosis.programShellSettings.InteractHint.Diagnosis.NoIp)
+		}
+		return
 	}
 
 	diagnosis.loggerHelper.AddLog(basic.INFO, "app/diagnosis: Start checking network connectivity")
@@ -137,6 +163,35 @@ func (diagnosis *DiagnosisShellHelper) DoDiagnosis() {
 	if len(unavailable) > 0 {
 		diagnosis.loggerHelper.AddLog(basic.INFO,
 			fmt.Sprintf("app/diagnosis: The following Intranet DNS is unavailable:\n%s", strings.Join(unavailable, ", ")))
+	}
+
+	// =============== Proxy check ================
+	diagnosis.loggerHelper.AddLog(basic.INFO, "app/diagnosis: Start local proxy detecting")
+	proxies, programs, proxyAvailable := diagnosis.proxyChecker.ProxyCheck()
+	noAvail := true
+	if len(proxies) > 0 {
+		var proxyList []string
+		for i := 0; i < len(proxies); i++ {
+			avail := "x"
+			if proxyAvailable[i] {
+				avail = "o"
+				noAvail = false
+			}
+			proxyList = append(proxyList, fmt.Sprintf("%s (%s) %s", proxies[i], programs[i], avail))
+		}
+
+		diagnosis.loggerHelper.AddLog(basic.INFO, fmt.Sprint("app/diagnosis: Proxies found:", "\n", strings.Join(proxyList, "\n")))
+		if diagnosis.printHint {
+			fmt.Println(diagnosis.programShellSettings.InteractHint.Diagnosis.ProxyFound)
+			fmt.Println(strings.Join(proxyList, "\n"))
+		}
+		if noAvail {
+			diagnosis.loggerHelper.AddLog(basic.WARNING, "app/diagnosis: No proxy available")
+			if diagnosis.printHint {
+				fmt.Println(diagnosis.programShellSettings.InteractHint.Diagnosis.NoProxyAvailable)
+			}
+		}
+
 	}
 
 }
